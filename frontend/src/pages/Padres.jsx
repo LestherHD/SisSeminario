@@ -24,23 +24,43 @@ import {
   TextField,
   Stack,
   IconButton,
+  MenuItem,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 
-export default function Comunidades() {
+export default function Padres() {
   const navigate = useNavigate();
   const { usuario, logout } = useAuth();
   const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
+  const [padres, setPadres] = useState([]);
   const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [editando, setEditando] = useState(null);
-  const [form, setForm] = useState({ nombre: '', ubicacion: '', numFamilias: 0 });
   const [guardando, setGuardando] = useState(false);
+  const [form, setForm] = useState({
+    nombre: '',
+    dpi: '',
+    telefono: '',
+    email: '',
+    canalPreferido: 'email',
+    comunidad: '',
+  });
+
+  const cargarPadres = async () => {
+    try {
+      const response = await api.get('/padres');
+      setPadres(response.data);
+    } catch (error) {
+      setError(error.response?.data?.mensaje || 'Error al cargar padres');
+    } finally {
+      setCargando(false);
+    }
+  };
 
   const cargarComunidades = async () => {
     try {
@@ -48,24 +68,37 @@ export default function Comunidades() {
       setComunidades(response.data);
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al cargar comunidades');
-    } finally {
-      setCargando(false);
     }
   };
 
+  useEffect(() => {
+    cargarPadres();
+    cargarComunidades();
+  }, []);
+
   const abrirCrear = () => {
-    setForm({ nombre: '', ubicacion: '', numFamilias: 0 });
+    setForm({
+      nombre: '',
+      dpi: '',
+      telefono: '',
+      email: '',
+      canalPreferido: 'email',
+      comunidad: '',
+    });
     setEditando(null);
     setDialogoAbierto(true);
   };
 
-  const abrirEditar = (comunidad) => {
+  const abrirEditar = (padre) => {
     setForm({
-      nombre: comunidad.nombre || '',
-      ubicacion: comunidad.ubicacion || '',
-      numFamilias: comunidad.numFamilias ?? 0,
+      nombre: padre.nombre || '',
+      dpi: padre.dpi || '',
+      telefono: padre.telefono || '',
+      email: padre.email || '',
+      canalPreferido: padre.canalPreferido || 'email',
+      comunidad: padre.comunidad?._id || '',
     });
-    setEditando(comunidad);
+    setEditando(padre);
     setDialogoAbierto(true);
   };
 
@@ -78,44 +111,35 @@ export default function Comunidades() {
     setError('');
 
     try {
-      const payload = {
-        ...form,
-        numFamilias: Number(form.numFamilias),
-      };
-
       if (editando) {
-        await api.put(`/comunidades/${editando._id}`, payload);
+        await api.put(`/padres/${editando._id}`, form);
       } else {
-        await api.post('/comunidades', payload);
+        await api.post('/padres', form);
       }
 
       cerrarDialogo();
-      await cargarComunidades();
+      await cargarPadres();
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al guardar la comunidad');
+      setError(error.response?.data?.mensaje || 'Error al guardar el padre');
     } finally {
       setGuardando(false);
     }
   };
 
   const eliminar = async (id) => {
-    const confirmado = window.confirm('¿Eliminar esta comunidad?');
+    const confirmado = window.confirm('¿Eliminar este padre?');
 
     if (!confirmado) {
       return;
     }
 
     try {
-      await api.delete(`/comunidades/${id}`);
-      await cargarComunidades();
+      await api.delete(`/padres/${id}`);
+      await cargarPadres();
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al eliminar la comunidad');
+      setError(error.response?.data?.mensaje || 'Error al eliminar el padre');
     }
   };
-
-  useEffect(() => {
-    cargarComunidades();
-  }, []);
 
   return (
     <Box>
@@ -133,9 +157,7 @@ export default function Comunidades() {
             </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body1">
-              {usuario?.nombre}
-            </Typography>
+            <Typography variant="body1">{usuario?.nombre}</Typography>
             <Button color="inherit" onClick={logout} startIcon={<LogoutIcon />}>
               Salir
             </Button>
@@ -146,11 +168,11 @@ export default function Comunidades() {
       <Box sx={{ p: 3 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
           <Typography variant="h4" component="h1">
-            Comunidades
+            Padres / Tutores
           </Typography>
           {puedeGestionar && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={abrirCrear}>
-              Nueva Comunidad
+              Nuevo Padre
             </Button>
           )}
         </Stack>
@@ -173,28 +195,34 @@ export default function Comunidades() {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Ubicación</TableCell>
-                  <TableCell>N° Familias</TableCell>
+                  <TableCell>DPI</TableCell>
+                  <TableCell>Teléfono</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Canal</TableCell>
+                  <TableCell>Comunidad</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {comunidades.length > 0 ? (
-                  comunidades.map((comunidad) => (
-                    <TableRow key={comunidad._id}>
-                      <TableCell>{comunidad.nombre}</TableCell>
-                      <TableCell>{comunidad.ubicacion}</TableCell>
-                      <TableCell>{comunidad.numFamilias}</TableCell>
+                {padres.length > 0 ? (
+                  padres.map((padre) => (
+                    <TableRow key={padre._id}>
+                      <TableCell>{padre.nombre}</TableCell>
+                      <TableCell>{padre.dpi}</TableCell>
+                      <TableCell>{padre.telefono}</TableCell>
+                      <TableCell>{padre.email}</TableCell>
+                      <TableCell>{padre.canalPreferido}</TableCell>
+                      <TableCell>{padre.comunidad?.nombre}</TableCell>
                       <TableCell>
                         {puedeGestionar ? (
                           <Stack direction="row" spacing={1}>
-                            <IconButton aria-label="editar" onClick={() => abrirEditar(comunidad)}>
+                            <IconButton aria-label="editar" onClick={() => abrirEditar(padre)}>
                               <EditIcon />
                             </IconButton>
                             <IconButton
                               aria-label="eliminar"
                               color="error"
-                              onClick={() => eliminar(comunidad._id)}
+                              onClick={() => eliminar(padre._id)}
                             >
                               <DeleteIcon />
                             </IconButton>
@@ -207,8 +235,8 @@ export default function Comunidades() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} align="center">
-                      No hay comunidades registradas
+                    <TableCell colSpan={7} align="center">
+                      No hay padres registrados
                     </TableCell>
                   </TableRow>
                 )}
@@ -219,30 +247,60 @@ export default function Comunidades() {
       </Box>
 
       <Dialog open={dialogoAbierto} onClose={cerrarDialogo} fullWidth maxWidth="sm">
-        <DialogTitle>{editando ? 'Editar Comunidad' : 'Nueva Comunidad'}</DialogTitle>
+        <DialogTitle>{editando ? 'Editar Padre' : 'Nuevo Padre'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               label="Nombre"
-              type="text"
+              required
               fullWidth
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             />
             <TextField
-              label="Ubicación"
-              type="text"
+              label="DPI"
               fullWidth
-              value={form.ubicacion}
-              onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
+              value={form.dpi}
+              onChange={(e) => setForm({ ...form, dpi: e.target.value })}
             />
             <TextField
-              label="N° Familias"
-              type="number"
+              label="Teléfono"
               fullWidth
-              value={form.numFamilias}
-              onChange={(e) => setForm({ ...form, numFamilias: e.target.value })}
+              value={form.telefono}
+              onChange={(e) => setForm({ ...form, telefono: e.target.value })}
             />
+            <TextField
+              label="Email"
+              type="email"
+              fullWidth
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+            <TextField
+              select
+              label="Canal preferido"
+              fullWidth
+              value={form.canalPreferido}
+              onChange={(e) => setForm({ ...form, canalPreferido: e.target.value })}
+            >
+              <MenuItem value="email">Email</MenuItem>
+              <MenuItem value="telegram">Telegram</MenuItem>
+              <MenuItem value="whatsapp">WhatsApp</MenuItem>
+            </TextField>
+            <TextField
+              select
+              label="Comunidad"
+              required
+              fullWidth
+              value={form.comunidad}
+              onChange={(e) => setForm({ ...form, comunidad: e.target.value })}
+            >
+              {comunidades.map((comunidad) => (
+                <MenuItem key={comunidad._id} value={comunidad._id}>
+                  {comunidad.nombre}
+                </MenuItem>
+              ))}
+            </TextField>
           </Stack>
         </DialogContent>
         <DialogActions>

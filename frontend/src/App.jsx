@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login.jsx';
 import Comunidades from './pages/Comunidades.jsx';
+import Padres from './pages/Padres.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 function App() {
@@ -21,6 +22,10 @@ function App() {
         element={
           usuario ? <Comunidades /> : <Navigate to="/login" />
         }
+      />
+      <Route
+        path="/padres"
+        element={usuario ? <Padres /> : <Navigate to="/login" />}
       />
       <Route
         path="/"
