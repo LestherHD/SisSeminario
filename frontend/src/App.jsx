@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login.jsx';
+import Comunidades from './pages/Comunidades.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 function App() {
@@ -18,15 +19,7 @@ function App() {
       <Route
         path="/comunidades"
         element={
-          usuario ? (
-            <div style={{ padding: 20 }}>
-              <h1>Bienvenido {usuario.nombre}</h1>
-              <p>Rol: {usuario.rol}</p>
-              <p>(Aquí irá la pantalla de comunidades)</p>
-            </div>
-          ) : (
-            <Navigate to="/login" />
-          )
+          usuario ? <Comunidades /> : <Navigate to="/login" />
         }
       />
       <Route
