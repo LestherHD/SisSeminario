@@ -17,6 +17,9 @@ import {
   Alert,
   AppBar,
   Toolbar,
+  FormControlLabel,
+  Switch,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,6 +32,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import RestoreIcon from '@mui/icons-material/Restore';
 
 export default function Comunidades() {
   const navigate = useNavigate();
@@ -37,14 +41,20 @@ export default function Comunidades() {
   const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState({ nombre: '', ubicacion: '', numFamilias: 0 });
   const [guardando, setGuardando] = useState(false);
 
   const cargarComunidades = async () => {
+    setCargando(true);
+    setError('');
+
     try {
-      const response = await api.get('/comunidades');
+      const response = await api.get(
+        mostrarInactivos ? '/comunidades?incluirInactivos=true' : '/comunidades'
+      );
       setComunidades(response.data);
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al cargar comunidades');
@@ -113,9 +123,18 @@ export default function Comunidades() {
     }
   };
 
+  const reactivar = async (id) => {
+    try {
+      await api.patch(`/comunidades/${id}/reactivar`);
+      await cargarComunidades();
+    } catch (error) {
+      setError(error.response?.data?.mensaje || 'Error al reactivar la comunidad');
+    }
+  };
+
   useEffect(() => {
     cargarComunidades();
-  }, []);
+  }, [mostrarInactivos]);
 
   return (
     <Box>
@@ -148,11 +167,22 @@ export default function Comunidades() {
           <Typography variant="h4" component="h1">
             Comunidades
           </Typography>
-          {puedeGestionar && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={abrirCrear}>
-              Nueva Comunidad
-            </Button>
-          )}
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={mostrarInactivos}
+                  onChange={(e) => setMostrarInactivos(e.target.checked)}
+                />
+              }
+              label="Mostrar inactivas"
+            />
+            {puedeGestionar && (
+              <Button variant="contained" startIcon={<AddIcon />} onClick={abrirCrear}>
+                Nueva Comunidad
+              </Button>
+            )}
+          </Stack>
         </Stack>
 
         {cargando && (
@@ -175,6 +205,7 @@ export default function Comunidades() {
                   <TableCell>Nombre</TableCell>
                   <TableCell>Ubicación</TableCell>
                   <TableCell>N° Familias</TableCell>
+                  <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -186,19 +217,39 @@ export default function Comunidades() {
                       <TableCell>{comunidad.ubicacion}</TableCell>
                       <TableCell>{comunidad.numFamilias}</TableCell>
                       <TableCell>
+                        <Chip
+                          color={comunidad.activo ? 'success' : 'default'}
+                          label={comunidad.activo ? 'Activa' : 'Inactiva'}
+                        />
+                      </TableCell>
+                      <TableCell>
                         {puedeGestionar ? (
-                          <Stack direction="row" spacing={1}>
-                            <IconButton aria-label="editar" onClick={() => abrirEditar(comunidad)}>
-                              <EditIcon />
-                            </IconButton>
+                          comunidad.activo ? (
+                            <Stack direction="row" spacing={1}>
+                              <IconButton
+                                aria-label="editar"
+                                onClick={() => abrirEditar(comunidad)}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                              <IconButton
+                                aria-label="eliminar"
+                                color="error"
+                                onClick={() => eliminar(comunidad._id)}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Stack>
+                          ) : (
                             <IconButton
-                              aria-label="eliminar"
-                              color="error"
-                              onClick={() => eliminar(comunidad._id)}
+                              aria-label="reactivar"
+                              color="primary"
+                              title="Reactivar"
+                              onClick={() => reactivar(comunidad._id)}
                             >
-                              <DeleteIcon />
+                              <RestoreIcon />
                             </IconButton>
-                          </Stack>
+                          )
                         ) : (
                           '—'
                         )}
@@ -207,7 +258,7 @@ export default function Comunidades() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} align="center">
+                    <TableCell colSpan={5} align="center">
                       No hay comunidades registradas
                     </TableCell>
                   </TableRow>

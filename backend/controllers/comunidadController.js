@@ -18,7 +18,9 @@ export async function crear(req, res) {
 
 export async function listar(req, res) {
   try {
-    const comunidades = await Comunidad.find({ activo: true }).sort({ nombre: 1 });
+    const incluirInactivos = req.query.incluirInactivos === 'true';
+    const filtro = incluirInactivos ? {} : { activo: true };
+    const comunidades = await Comunidad.find(filtro).sort({ nombre: 1 });
 
     return res.status(200).json(comunidades);
   } catch (error) {
@@ -73,6 +75,25 @@ export async function eliminar(req, res) {
     }
 
     return res.status(200).json({ mensaje: 'Comunidad eliminada correctamente' });
+  } catch (error) {
+    return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
+  }
+}
+
+export async function reactivar(req, res) {
+  try {
+    const { id } = req.params;
+    const comunidad = await Comunidad.findByIdAndUpdate(
+      id,
+      { activo: true },
+      { new: true }
+    );
+
+    if (!comunidad) {
+      return res.status(404).json({ mensaje: 'Comunidad no encontrada' });
+    }
+
+    return res.status(200).json(comunidad);
   } catch (error) {
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
   }
