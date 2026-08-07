@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
 import comunidadRoutes from './routes/comunidadRoutes.js';
 import padreRoutes from './routes/padreRoutes.js';
+import ninoRoutes from './routes/ninoRoutes.js';
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/comunidades', comunidadRoutes);
 app.use('/api/padres', padreRoutes);
+app.use('/api/ninos', ninoRoutes);
 
 app.get('/', (req, res) => {
   res.json({ mensaje: 'API SCCVI funcionando' });

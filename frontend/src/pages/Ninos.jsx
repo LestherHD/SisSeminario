@@ -17,9 +17,6 @@ import {
   Alert,
   AppBar,
   Toolbar,
-  FormControlLabel,
-  Switch,
-  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -27,6 +24,16 @@ import {
   TextField,
   Stack,
   IconButton,
+  MenuItem,
+  Chip,
+  FormControlLabel,
+  Switch,
+  Select,
+  InputLabel,
+  FormControl,
+  OutlinedInput,
+  Checkbox,
+  ListItemText,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
@@ -34,48 +41,91 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
 
-export default function Comunidades() {
+export default function Ninos() {
   const navigate = useNavigate();
   const { usuario, logout } = useAuth();
   const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
+  const [ninos, setNinos] = useState([]);
   const [comunidades, setComunidades] = useState([]);
+  const [padresLista, setPadresLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [editando, setEditando] = useState(null);
-  const [form, setForm] = useState({ nombre: '', ubicacion: '', numFamilias: 0 });
   const [guardando, setGuardando] = useState(false);
+  const [form, setForm] = useState({
+    nombre: '',
+    fechaNacimiento: '',
+    sexo: '',
+    comunidad: '',
+    padres: [],
+  });
 
-  const cargarComunidades = async () => {
+  const cargarNinos = async () => {
     setCargando(true);
     setError('');
 
     try {
       const response = await api.get(
-        mostrarInactivos ? '/comunidades?incluirInactivos=true' : '/comunidades'
+        mostrarInactivos ? '/ninos?incluirInactivos=true' : '/ninos'
       );
-      setComunidades(response.data);
+      setNinos(response.data);
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al cargar comunidades');
+      setError(error.response?.data?.mensaje || 'Error al cargar niños');
     } finally {
       setCargando(false);
     }
   };
 
+  const cargarComunidades = async () => {
+    try {
+      const response = await api.get('/comunidades');
+      setComunidades(response.data);
+    } catch (error) {
+      setError(error.response?.data?.mensaje || 'Error al cargar comunidades');
+    }
+  };
+
+  const cargarPadres = async () => {
+    try {
+      const response = await api.get('/padres');
+      setPadresLista(response.data);
+    } catch (error) {
+      setError(error.response?.data?.mensaje || 'Error al cargar padres');
+    }
+  };
+
+  useEffect(() => {
+    cargarComunidades();
+    cargarPadres();
+  }, []);
+
+  useEffect(() => {
+    cargarNinos();
+  }, [mostrarInactivos]);
+
   const abrirCrear = () => {
-    setForm({ nombre: '', ubicacion: '', numFamilias: 0 });
+    setForm({
+      nombre: '',
+      fechaNacimiento: '',
+      sexo: '',
+      comunidad: '',
+      padres: [],
+    });
     setEditando(null);
     setDialogoAbierto(true);
   };
 
-  const abrirEditar = (comunidad) => {
+  const abrirEditar = (nino) => {
     setForm({
-      nombre: comunidad.nombre || '',
-      ubicacion: comunidad.ubicacion || '',
-      numFamilias: comunidad.numFamilias ?? 0,
+      nombre: nino.nombre || '',
+      fechaNacimiento: nino.fechaNacimiento ? nino.fechaNacimiento.slice(0, 10) : '',
+      sexo: nino.sexo || '',
+      comunidad: nino.comunidad?._id || '',
+      padres: nino.padres?.map((padre) => padre._id) || [],
     });
-    setEditando(comunidad);
+    setEditando(nino);
     setDialogoAbierto(true);
   };
 
@@ -88,53 +138,46 @@ export default function Comunidades() {
     setError('');
 
     try {
-      const payload = {
-        ...form,
-        numFamilias: Number(form.numFamilias),
-      };
-
       if (editando) {
-        await api.put(`/comunidades/${editando._id}`, payload);
+        await api.put(`/ninos/${editando._id}`, form);
       } else {
-        await api.post('/comunidades', payload);
+        await api.post('/ninos', form);
       }
 
       cerrarDialogo();
-      await cargarComunidades();
+      await cargarNinos();
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al guardar la comunidad');
+      setError(error.response?.data?.mensaje || 'Error al guardar el niño');
     } finally {
       setGuardando(false);
     }
   };
 
   const eliminar = async (id) => {
-    const confirmado = window.confirm('¿Eliminar esta comunidad?');
+    const confirmado = window.confirm('¿Eliminar este niño?');
 
     if (!confirmado) {
       return;
     }
 
     try {
-      await api.delete(`/comunidades/${id}`);
-      await cargarComunidades();
+      await api.delete(`/ninos/${id}`);
+      await cargarNinos();
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al eliminar la comunidad');
+      setError(error.response?.data?.mensaje || 'Error al eliminar el niño');
     }
   };
 
   const reactivar = async (id) => {
     try {
-      await api.patch(`/comunidades/${id}/reactivar`);
-      await cargarComunidades();
+      await api.patch(`/ninos/${id}/reactivar`);
+      await cargarNinos();
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al reactivar la comunidad');
+      setError(error.response?.data?.mensaje || 'Error al reactivar el niño');
     }
   };
 
-  useEffect(() => {
-    cargarComunidades();
-  }, [mostrarInactivos]);
+  const padresSeleccionados = padresLista.filter((padre) => form.padres.includes(padre._id));
 
   return (
     <Box>
@@ -155,9 +198,7 @@ export default function Comunidades() {
             </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body1">
-              {usuario?.nombre}
-            </Typography>
+            <Typography variant="body1">{usuario?.nombre}</Typography>
             <Button color="inherit" onClick={logout} startIcon={<LogoutIcon />}>
               Salir
             </Button>
@@ -168,7 +209,7 @@ export default function Comunidades() {
       <Box sx={{ p: 3 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
           <Typography variant="h4" component="h1">
-            Comunidades
+            Niños
           </Typography>
           <Stack direction="row" alignItems="center" spacing={2}>
             <FormControlLabel
@@ -178,11 +219,11 @@ export default function Comunidades() {
                   onChange={(e) => setMostrarInactivos(e.target.checked)}
                 />
               }
-              label="Mostrar inactivas"
+              label="Mostrar inactivos"
             />
             {puedeGestionar && (
               <Button variant="contained" startIcon={<AddIcon />} onClick={abrirCrear}>
-                Nueva Comunidad
+                Nuevo Niño
               </Button>
             )}
           </Stack>
@@ -206,39 +247,40 @@ export default function Comunidades() {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Ubicación</TableCell>
-                  <TableCell>N° Familias</TableCell>
+                  <TableCell>Fecha Nac.</TableCell>
+                  <TableCell>Sexo</TableCell>
+                  <TableCell>Comunidad</TableCell>
+                  <TableCell>Padres</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {comunidades.length > 0 ? (
-                  comunidades.map((comunidad) => (
-                    <TableRow key={comunidad._id}>
-                      <TableCell>{comunidad.nombre}</TableCell>
-                      <TableCell>{comunidad.ubicacion}</TableCell>
-                      <TableCell>{comunidad.numFamilias}</TableCell>
+                {ninos.length > 0 ? (
+                  ninos.map((nino) => (
+                    <TableRow key={nino._id}>
+                      <TableCell>{nino.nombre}</TableCell>
+                      <TableCell>{new Date(nino.fechaNacimiento).toLocaleDateString()}</TableCell>
+                      <TableCell>{nino.sexo}</TableCell>
+                      <TableCell>{nino.comunidad?.nombre}</TableCell>
+                      <TableCell>{nino.padres?.map((padre) => padre.nombre).join(', ')}</TableCell>
                       <TableCell>
                         <Chip
-                          color={comunidad.activo ? 'success' : 'default'}
-                          label={comunidad.activo ? 'Activa' : 'Inactiva'}
+                          color={nino.activo ? 'success' : 'default'}
+                          label={nino.activo ? 'Activo' : 'Inactivo'}
                         />
                       </TableCell>
                       <TableCell>
                         {puedeGestionar ? (
-                          comunidad.activo ? (
+                          nino.activo ? (
                             <Stack direction="row" spacing={1}>
-                              <IconButton
-                                aria-label="editar"
-                                onClick={() => abrirEditar(comunidad)}
-                              >
+                              <IconButton aria-label="editar" onClick={() => abrirEditar(nino)}>
                                 <EditIcon />
                               </IconButton>
                               <IconButton
                                 aria-label="eliminar"
                                 color="error"
-                                onClick={() => eliminar(comunidad._id)}
+                                onClick={() => eliminar(nino._id)}
                               >
                                 <DeleteIcon />
                               </IconButton>
@@ -248,7 +290,7 @@ export default function Comunidades() {
                               aria-label="reactivar"
                               color="primary"
                               title="Reactivar"
-                              onClick={() => reactivar(comunidad._id)}
+                              onClick={() => reactivar(nino._id)}
                             >
                               <RestoreIcon />
                             </IconButton>
@@ -261,8 +303,8 @@ export default function Comunidades() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">
-                      No hay comunidades registradas
+                    <TableCell colSpan={7} align="center">
+                      No hay niños registrados
                     </TableCell>
                   </TableRow>
                 )}
@@ -273,30 +315,73 @@ export default function Comunidades() {
       </Box>
 
       <Dialog open={dialogoAbierto} onClose={cerrarDialogo} fullWidth maxWidth="sm">
-        <DialogTitle>{editando ? 'Editar Comunidad' : 'Nueva Comunidad'}</DialogTitle>
+        <DialogTitle>{editando ? 'Editar Niño' : 'Nuevo Niño'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               label="Nombre"
-              type="text"
+              required
               fullWidth
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             />
             <TextField
-              label="Ubicación"
-              type="text"
+              label="Fecha de nacimiento"
+              type="date"
+              required
               fullWidth
-              value={form.ubicacion}
-              onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
+              value={form.fechaNacimiento}
+              onChange={(e) => setForm({ ...form, fechaNacimiento: e.target.value })}
+              InputLabelProps={{ shrink: true }}
             />
             <TextField
-              label="N° Familias"
-              type="number"
+              select
+              label="Sexo"
+              required
               fullWidth
-              value={form.numFamilias}
-              onChange={(e) => setForm({ ...form, numFamilias: e.target.value })}
-            />
+              value={form.sexo}
+              onChange={(e) => setForm({ ...form, sexo: e.target.value })}
+            >
+              <MenuItem value="M">Masculino</MenuItem>
+              <MenuItem value="F">Femenino</MenuItem>
+            </TextField>
+            <TextField
+              select
+              label="Comunidad"
+              required
+              fullWidth
+              value={form.comunidad}
+              onChange={(e) => setForm({ ...form, comunidad: e.target.value })}
+            >
+              {comunidades.map((comunidad) => (
+                <MenuItem key={comunidad._id} value={comunidad._id}>
+                  {comunidad.nombre}
+                </MenuItem>
+              ))}
+            </TextField>
+            <FormControl fullWidth>
+              <InputLabel id="padres-label">Padres</InputLabel>
+              <Select
+                labelId="padres-label"
+                multiple
+                value={form.padres}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    padres: e.target.value,
+                  })
+                }
+                input={<OutlinedInput label="Padres" />}
+                renderValue={() => padresSeleccionados.map((padre) => padre.nombre).join(', ')}
+              >
+                {padresLista.map((padre) => (
+                  <MenuItem key={padre._id} value={padre._id}>
+                    <Checkbox checked={form.padres.includes(padre._id)} />
+                    <ListItemText primary={padre.nombre} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Stack>
         </DialogContent>
         <DialogActions>
