@@ -26,10 +26,22 @@ import {
   IconButton,
   MenuItem,
   Chip,
+  Grid,
+  Autocomplete,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 function obtenerColorPercentil(percentil) {
   const valor = Number(percentil);
@@ -60,6 +72,7 @@ export default function Crecimiento() {
     usuario?.rol === 'admin' || usuario?.rol === 'encargado' || usuario?.rol === 'personal';
   const [ninos, setNinos] = useState([]);
   const [ninoSeleccionado, setNinoSeleccionado] = useState('');
+  const [ninoObj, setNinoObj] = useState(null);
   const [mediciones, setMediciones] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
@@ -198,19 +211,19 @@ export default function Crecimiento() {
           Control de Crecimiento
         </Typography>
 
-        <TextField
-          select
-          label="Seleccionar niño"
-          value={ninoSeleccionado}
-          onChange={(e) => setNinoSeleccionado(e.target.value)}
-          sx={{ width: 300, mb: 3 }}
-        >
-          {ninos.map((nino) => (
-            <MenuItem key={nino._id} value={nino._id}>
-              {nino.nombre}
-            </MenuItem>
-          ))}
-        </TextField>
+        <Autocomplete
+          options={ninos}
+          getOptionLabel={(option) => option.nombre || ''}
+          value={ninoObj}
+          onChange={(event, nuevoValor) => {
+            setNinoObj(nuevoValor);
+            setNinoSeleccionado(nuevoValor ? nuevoValor._id : '');
+          }}
+          isOptionEqualToValue={(option, value) => option._id === value._id}
+          renderInput={(params) => <TextField {...params} label="Buscar niño" />}
+          sx={{ width: 350, mb: 3 }}
+          noOptionsText="No se encontraron niños"
+        />
 
         {!ninoSeleccionado && (
           <Alert severity="info" sx={{ mb: 3 }}>
@@ -303,6 +316,64 @@ export default function Crecimiento() {
                   </TableBody>
                 </Table>
               </TableContainer>
+            )}
+
+            {!cargando && !error && mediciones.length > 0 && (
+              <Box sx={{ mt: 4 }}>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                  Curvas de crecimiento
+                </Typography>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                        Peso vs Edad (meses)
+                      </Typography>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={mediciones}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="edadMeses" label={{ value: 'Edad (meses)', position: 'insideBottom', offset: -5 }} />
+                          <YAxis label={{ value: 'Peso (kg)', angle: -90, position: 'insideLeft' }} />
+                          <Tooltip />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="peso"
+                            stroke="#1976d2"
+                            name="Peso (kg)"
+                            dot
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </Paper>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                        Talla vs Edad (meses)
+                      </Typography>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={mediciones}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="edadMeses" label={{ value: 'Edad (meses)', position: 'insideBottom', offset: -5 }} />
+                          <YAxis label={{ value: 'Talla (cm)', angle: -90, position: 'insideLeft' }} />
+                          <Tooltip />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="talla"
+                            stroke="#2e7d32"
+                            name="Talla (cm)"
+                            dot
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </Box>
             )}
           </>
         )}
