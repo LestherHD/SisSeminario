@@ -24,16 +24,9 @@ import {
   TextField,
   Stack,
   IconButton,
-  MenuItem,
   Chip,
   FormControlLabel,
   Switch,
-  Select,
-  InputLabel,
-  FormControl,
-  OutlinedInput,
-  Checkbox,
-  ListItemText,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
@@ -41,13 +34,11 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
 
-export default function Ninos() {
+export default function Vacunas() {
   const navigate = useNavigate();
   const { usuario, logout } = useAuth();
   const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
-  const [ninos, setNinos] = useState([]);
-  const [comunidades, setComunidades] = useState([]);
-  const [padresLista, setPadresLista] = useState([]);
+  const [vacunas, setVacunas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
@@ -56,76 +47,50 @@ export default function Ninos() {
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState({
     nombre: '',
-    fechaNacimiento: '',
-    sexo: '',
-    comunidad: '',
-    padres: [],
+    edadRecomendada: 0,
+    dosis: '',
+    descripcion: '',
   });
 
-  const cargarNinos = async () => {
+  const cargarVacunas = async () => {
     setCargando(true);
     setError('');
 
     try {
       const response = await api.get(
-        mostrarInactivos ? '/ninos?incluirInactivos=true' : '/ninos'
+        mostrarInactivos ? '/vacunas?incluirInactivos=true' : '/vacunas'
       );
-      setNinos(response.data);
+      setVacunas(response.data);
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al cargar niños');
+      setError(error.response?.data?.mensaje || 'Error al cargar vacunas');
     } finally {
       setCargando(false);
     }
   };
 
-  const cargarComunidades = async () => {
-    try {
-      const response = await api.get('/comunidades');
-      setComunidades(response.data);
-    } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al cargar comunidades');
-    }
-  };
-
-  const cargarPadres = async () => {
-    try {
-      const response = await api.get('/padres');
-      setPadresLista(response.data);
-    } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al cargar padres');
-    }
-  };
-
   useEffect(() => {
-    cargarComunidades();
-    cargarPadres();
-  }, []);
-
-  useEffect(() => {
-    cargarNinos();
+    cargarVacunas();
   }, [mostrarInactivos]);
 
   const abrirCrear = () => {
     setForm({
       nombre: '',
-      fechaNacimiento: '',
-      sexo: '',
-      comunidad: '',
-      padres: [],
+      edadRecomendada: 0,
+      dosis: '',
+      descripcion: '',
     });
     setEditando(null);
     setDialogoAbierto(true);
   };
 
-  const abrirEditar = (nino) => {
+  const abrirEditar = (vacuna) => {
     setForm({
-      nombre: nino.nombre || '',
-      fechaNacimiento: nino.fechaNacimiento ? nino.fechaNacimiento.slice(0, 10) : '',
-      sexo: nino.sexo || '',
-      comunidad: nino.comunidad?._id || '',
-      padres: nino.padres?.map((padre) => padre._id) || [],
+      nombre: vacuna.nombre || '',
+      edadRecomendada: vacuna.edadRecomendada ?? 0,
+      dosis: vacuna.dosis || '',
+      descripcion: vacuna.descripcion || '',
     });
-    setEditando(nino);
+    setEditando(vacuna);
     setDialogoAbierto(true);
   };
 
@@ -138,46 +103,49 @@ export default function Ninos() {
     setError('');
 
     try {
+      const payload = {
+        ...form,
+        edadRecomendada: Number(form.edadRecomendada),
+      };
+
       if (editando) {
-        await api.put(`/ninos/${editando._id}`, form);
+        await api.put(`/vacunas/${editando._id}`, payload);
       } else {
-        await api.post('/ninos', form);
+        await api.post('/vacunas', payload);
       }
 
       cerrarDialogo();
-      await cargarNinos();
+      await cargarVacunas();
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al guardar el niño');
+      setError(error.response?.data?.mensaje || 'Error al guardar la vacuna');
     } finally {
       setGuardando(false);
     }
   };
 
   const eliminar = async (id) => {
-    const confirmado = window.confirm('¿Eliminar este niño?');
+    const confirmado = window.confirm('¿Eliminar esta vacuna?');
 
     if (!confirmado) {
       return;
     }
 
     try {
-      await api.delete(`/ninos/${id}`);
-      await cargarNinos();
+      await api.delete(`/vacunas/${id}`);
+      await cargarVacunas();
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al eliminar el niño');
+      setError(error.response?.data?.mensaje || 'Error al eliminar la vacuna');
     }
   };
 
   const reactivar = async (id) => {
     try {
-      await api.patch(`/ninos/${id}/reactivar`);
-      await cargarNinos();
+      await api.patch(`/vacunas/${id}/reactivar`);
+      await cargarVacunas();
     } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al reactivar el niño');
+      setError(error.response?.data?.mensaje || 'Error al reactivar la vacuna');
     }
   };
-
-  const padresSeleccionados = padresLista.filter((padre) => form.padres.includes(padre._id));
 
   return (
     <Box>
@@ -212,7 +180,7 @@ export default function Ninos() {
       <Box sx={{ p: 3 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
           <Typography variant="h4" component="h1">
-            Niños
+            Vacunas
           </Typography>
           <Stack direction="row" alignItems="center" spacing={2}>
             <FormControlLabel
@@ -222,11 +190,11 @@ export default function Ninos() {
                   onChange={(e) => setMostrarInactivos(e.target.checked)}
                 />
               }
-              label="Mostrar inactivos"
+              label="Mostrar inactivas"
             />
             {puedeGestionar && (
               <Button variant="contained" startIcon={<AddIcon />} onClick={abrirCrear}>
-                Nuevo Niño
+                Nueva Vacuna
               </Button>
             )}
           </Stack>
@@ -250,40 +218,38 @@ export default function Ninos() {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Fecha Nac.</TableCell>
-                  <TableCell>Sexo</TableCell>
-                  <TableCell>Comunidad</TableCell>
-                  <TableCell>Padres</TableCell>
+                  <TableCell>Edad Recomendada (meses)</TableCell>
+                  <TableCell>Dosis</TableCell>
+                  <TableCell>Descripción</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {ninos.length > 0 ? (
-                  ninos.map((nino) => (
-                    <TableRow key={nino._id}>
-                      <TableCell>{nino.nombre}</TableCell>
-                      <TableCell>{new Date(nino.fechaNacimiento).toLocaleDateString()}</TableCell>
-                      <TableCell>{nino.sexo}</TableCell>
-                      <TableCell>{nino.comunidad?.nombre}</TableCell>
-                      <TableCell>{nino.padres?.map((padre) => padre.nombre).join(', ')}</TableCell>
+                {vacunas.length > 0 ? (
+                  vacunas.map((vacuna) => (
+                    <TableRow key={vacuna._id}>
+                      <TableCell>{vacuna.nombre}</TableCell>
+                      <TableCell>{`${vacuna.edadRecomendada} meses`}</TableCell>
+                      <TableCell>{vacuna.dosis}</TableCell>
+                      <TableCell>{vacuna.descripcion}</TableCell>
                       <TableCell>
                         <Chip
-                          color={nino.activo ? 'success' : 'default'}
-                          label={nino.activo ? 'Activo' : 'Inactivo'}
+                          color={vacuna.activo ? 'success' : 'default'}
+                          label={vacuna.activo ? 'Activo' : 'Inactivo'}
                         />
                       </TableCell>
                       <TableCell>
                         {puedeGestionar ? (
-                          nino.activo ? (
+                          vacuna.activo ? (
                             <Stack direction="row" spacing={1}>
-                              <IconButton aria-label="editar" onClick={() => abrirEditar(nino)}>
+                              <IconButton aria-label="editar" onClick={() => abrirEditar(vacuna)}>
                                 <EditIcon />
                               </IconButton>
                               <IconButton
                                 aria-label="eliminar"
                                 color="error"
-                                onClick={() => eliminar(nino._id)}
+                                onClick={() => eliminar(vacuna._id)}
                               >
                                 <DeleteIcon />
                               </IconButton>
@@ -293,7 +259,7 @@ export default function Ninos() {
                               aria-label="reactivar"
                               color="primary"
                               title="Reactivar"
-                              onClick={() => reactivar(nino._id)}
+                              onClick={() => reactivar(vacuna._id)}
                             >
                               <RestoreIcon />
                             </IconButton>
@@ -306,8 +272,8 @@ export default function Ninos() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
-                      No hay niños registrados
+                    <TableCell colSpan={6} align="center">
+                      No hay vacunas registradas
                     </TableCell>
                   </TableRow>
                 )}
@@ -318,7 +284,7 @@ export default function Ninos() {
       </Box>
 
       <Dialog open={dialogoAbierto} onClose={cerrarDialogo} fullWidth maxWidth="sm">
-        <DialogTitle>{editando ? 'Editar Niño' : 'Nuevo Niño'}</DialogTitle>
+        <DialogTitle>{editando ? 'Editar Vacuna' : 'Nueva Vacuna'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
@@ -329,62 +295,26 @@ export default function Ninos() {
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             />
             <TextField
-              label="Fecha de nacimiento"
-              type="date"
-              required
+              label="Edad Recomendada"
+              type="number"
               fullWidth
-              value={form.fechaNacimiento}
-              onChange={(e) => setForm({ ...form, fechaNacimiento: e.target.value })}
-              InputLabelProps={{ shrink: true }}
+              value={form.edadRecomendada}
+              onChange={(e) => setForm({ ...form, edadRecomendada: e.target.value })}
             />
             <TextField
-              select
-              label="Sexo"
-              required
+              label="Dosis"
               fullWidth
-              value={form.sexo}
-              onChange={(e) => setForm({ ...form, sexo: e.target.value })}
-            >
-              <MenuItem value="M">Masculino</MenuItem>
-              <MenuItem value="F">Femenino</MenuItem>
-            </TextField>
+              value={form.dosis}
+              onChange={(e) => setForm({ ...form, dosis: e.target.value })}
+            />
             <TextField
-              select
-              label="Comunidad"
-              required
+              label="Descripción"
               fullWidth
-              value={form.comunidad}
-              onChange={(e) => setForm({ ...form, comunidad: e.target.value })}
-            >
-              {comunidades.map((comunidad) => (
-                <MenuItem key={comunidad._id} value={comunidad._id}>
-                  {comunidad.nombre}
-                </MenuItem>
-              ))}
-            </TextField>
-            <FormControl fullWidth>
-              <InputLabel id="padres-label">Padres</InputLabel>
-              <Select
-                labelId="padres-label"
-                multiple
-                value={form.padres}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    padres: e.target.value,
-                  })
-                }
-                input={<OutlinedInput label="Padres" />}
-                renderValue={() => padresSeleccionados.map((padre) => padre.nombre).join(', ')}
-              >
-                {padresLista.map((padre) => (
-                  <MenuItem key={padre._id} value={padre._id}>
-                    <Checkbox checked={form.padres.includes(padre._id)} />
-                    <ListItemText primary={padre.nombre} />
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              multiline
+              rows={2}
+              value={form.descripcion}
+              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+            />
           </Stack>
         </DialogContent>
         <DialogActions>

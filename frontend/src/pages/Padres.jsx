@@ -158,6 +158,9 @@ export default function Padres() {
             <Button color="inherit" onClick={() => navigate('/ninos')}>
               Niños
             </Button>
+            <Button color="inherit" onClick={() => navigate('/vacunas')}>
+              Vacunas
+            </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="body1">{usuario?.nombre}</Typography>

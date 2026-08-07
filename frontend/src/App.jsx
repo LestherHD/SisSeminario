@@ -3,6 +3,7 @@ import Login from './pages/Login.jsx';
 import Comunidades from './pages/Comunidades.jsx';
 import Padres from './pages/Padres.jsx';
 import Ninos from './pages/Ninos.jsx';
+import Vacunas from './pages/Vacunas.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 function App() {
@@ -31,6 +32,10 @@ function App() {
       <Route
         path="/ninos"
         element={usuario ? <Ninos /> : <Navigate to="/login" />}
+      />
+      <Route
+        path="/vacunas"
+        element={usuario ? <Vacunas /> : <Navigate to="/login" />}
       />
       <Route
         path="/"
