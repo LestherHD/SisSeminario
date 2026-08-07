@@ -156,6 +156,9 @@ export default function Comunidades() {
             <Button color="inherit" onClick={() => navigate('/vacunas')}>
               Vacunas
             </Button>
+            <Button color="inherit" onClick={() => navigate('/crecimiento')}>
+              Crecimiento
+            </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="body1">
