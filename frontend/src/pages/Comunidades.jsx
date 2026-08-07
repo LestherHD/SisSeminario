@@ -33,6 +33,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
+import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 
 export default function Comunidades() {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ export default function Comunidades() {
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState({ nombre: '', ubicacion: '', numFamilias: 0 });
   const [guardando, setGuardando] = useState(false);
+  const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
 
   const cargarComunidades = async () => {
     setCargando(true);
@@ -83,6 +85,11 @@ export default function Comunidades() {
     setDialogoAbierto(false);
   };
 
+  const pedirConfirmacion = () => {
+    setDialogoAbierto(false);
+    setConfirmacionAbierta(true);
+  };
+
   const guardar = async () => {
     setGuardando(true);
     setError('');
@@ -99,14 +106,21 @@ export default function Comunidades() {
         await api.post('/comunidades', payload);
       }
 
-      cerrarDialogo();
       await cargarComunidades();
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al guardar la comunidad');
     } finally {
       setGuardando(false);
+      setConfirmacionAbierta(false);
+      setDialogoAbierto(false);
     }
   };
+
+  const camposConfirmacion = [
+    { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
+    { label: 'Ubicación', valor: form.ubicacion, valorAnterior: editando?.ubicacion },
+    { label: 'N° Familias', valor: form.numFamilias, valorAnterior: editando?.numFamilias },
+  ];
 
   const eliminar = async (id) => {
     const confirmado = window.confirm('¿Eliminar esta comunidad?');
@@ -158,6 +172,9 @@ export default function Comunidades() {
             </Button>
             <Button color="inherit" onClick={() => navigate('/crecimiento')}>
               Crecimiento
+            </Button>
+            <Button color="inherit" onClick={() => navigate('/vacunacion')}>
+              Vacunación
             </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -307,11 +324,21 @@ export default function Comunidades() {
         </DialogContent>
         <DialogActions>
           <Button onClick={cerrarDialogo}>Cancelar</Button>
-          <Button variant="contained" onClick={guardar} disabled={guardando}>
+          <Button variant="contained" onClick={pedirConfirmacion} disabled={guardando}>
             Guardar
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacion
+        abierto={confirmacionAbierta}
+        modo={editando ? 'editar' : 'crear'}
+        titulo="Comunidad"
+        campos={camposConfirmacion}
+        cargando={guardando}
+        onCancelar={() => setConfirmacionAbierta(false)}
+        onConfirmar={guardar}
+      />
     </Box>
   );
 }

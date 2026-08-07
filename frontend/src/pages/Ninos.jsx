@@ -28,18 +28,17 @@ import {
   Chip,
   FormControlLabel,
   Switch,
-  Select,
-  InputLabel,
-  FormControl,
-  OutlinedInput,
-  Checkbox,
-  ListItemText,
+  Autocomplete,
+  InputAdornment,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
+import SearchIcon from '@mui/icons-material/Search';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
+import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 
 export default function Ninos() {
   const navigate = useNavigate();
@@ -54,6 +53,8 @@ export default function Ninos() {
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
+  const [busquedaPadre, setBusquedaPadre] = useState('');
   const [form, setForm] = useState({
     nombre: '',
     fechaNacimiento: '',
@@ -133,6 +134,11 @@ export default function Ninos() {
     setDialogoAbierto(false);
   };
 
+  const pedirConfirmacion = () => {
+    setDialogoAbierto(false);
+    setConfirmacionAbierta(true);
+  };
+
   const guardar = async () => {
     setGuardando(true);
     setError('');
@@ -144,14 +150,38 @@ export default function Ninos() {
         await api.post('/ninos', form);
       }
 
-      cerrarDialogo();
       await cargarNinos();
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al guardar el niño');
     } finally {
       setGuardando(false);
+      setConfirmacionAbierta(false);
+      setDialogoAbierto(false);
     }
   };
+
+  const camposConfirmacion = [
+    { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
+    {
+      label: 'Fecha de nacimiento',
+      valor: form.fechaNacimiento,
+      valorAnterior: editando?.fechaNacimiento ? String(editando.fechaNacimiento).slice(0, 10) : undefined,
+    },
+    { label: 'Sexo', valor: form.sexo, valorAnterior: editando?.sexo },
+    {
+      label: 'Comunidad',
+      valor: comunidades.find((c) => c._id === form.comunidad)?.nombre || '',
+      valorAnterior: editando?.comunidad?.nombre,
+    },
+    {
+      label: 'Padres',
+      valor: padresLista
+        .filter((p) => form.padres.includes(p._id))
+        .map((p) => p.nombre)
+        .join(', '),
+      valorAnterior: editando?.padres ? editando.padres.map((p) => p.nombre).join(', ') : undefined,
+    },
+  ];
 
   const eliminar = async (id) => {
     const confirmado = window.confirm('¿Eliminar este niño?');
@@ -201,6 +231,9 @@ export default function Ninos() {
             </Button>
             <Button color="inherit" onClick={() => navigate('/crecimiento')}>
               Crecimiento
+            </Button>
+            <Button color="inherit" onClick={() => navigate('/vacunacion')}>
+              Vacunación
             </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -266,7 +299,7 @@ export default function Ninos() {
                   ninos.map((nino) => (
                     <TableRow key={nino._id}>
                       <TableCell>{nino.nombre}</TableCell>
-                      <TableCell>{new Date(nino.fechaNacimiento).toLocaleDateString()}</TableCell>
+                      <TableCell>{new Date(nino.fechaNacimiento).toLocaleDateString('es-GT')}</TableCell>
                       <TableCell>{nino.sexo}</TableCell>
                       <TableCell>{nino.comunidad?.nombre}</TableCell>
                       <TableCell>{nino.padres?.map((padre) => padre.nombre).join(', ')}</TableCell>
@@ -351,52 +384,113 @@ export default function Ninos() {
               <MenuItem value="M">Masculino</MenuItem>
               <MenuItem value="F">Femenino</MenuItem>
             </TextField>
-            <TextField
-              select
-              label="Comunidad"
-              required
+            <Autocomplete
+              options={comunidades}
+              getOptionLabel={(o) => o.nombre || ''}
+              value={comunidades.find((c) => c._id === form.comunidad) || null}
+              onChange={(e, nuevo) => setForm({ ...form, comunidad: nuevo ? nuevo._id : '' })}
+              isOptionEqualToValue={(o, v) => o._id === v._id}
+              renderInput={(params) => <TextField {...params} label="Comunidad" required />}
               fullWidth
-              value={form.comunidad}
-              onChange={(e) => setForm({ ...form, comunidad: e.target.value })}
-            >
-              {comunidades.map((comunidad) => (
-                <MenuItem key={comunidad._id} value={comunidad._id}>
-                  {comunidad.nombre}
-                </MenuItem>
-              ))}
-            </TextField>
-            <FormControl fullWidth>
-              <InputLabel id="padres-label">Padres</InputLabel>
-              <Select
-                labelId="padres-label"
-                multiple
-                value={form.padres}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    padres: e.target.value,
-                  })
-                }
-                input={<OutlinedInput label="Padres" />}
-                renderValue={() => padresSeleccionados.map((padre) => padre.nombre).join(', ')}
-              >
-                {padresLista.map((padre) => (
-                  <MenuItem key={padre._id} value={padre._id}>
-                    <Checkbox checked={form.padres.includes(padre._id)} />
-                    <ListItemText primary={padre.nombre} />
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            />
+
+            <Box>
+              <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                Padres / Tutores
+              </Typography>
+
+              <TextField
+                label="Buscar padre"
+                value={busquedaPadre}
+                onChange={(e) => setBusquedaPadre(e.target.value)}
+                fullWidth
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <Box sx={{ mt: 2 }}>
+                {padresSeleccionados.length > 0 ? (
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    {padresSeleccionados.map((padre) => (
+                      <Chip
+                        key={padre._id}
+                        label={padre.nombre}
+                        onDelete={() =>
+                          setForm({
+                            ...form,
+                            padres: form.padres.filter((id) => id !== padre._id),
+                          })
+                        }
+                      />
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Ningún padre seleccionado aún
+                  </Typography>
+                )}
+              </Box>
+
+              {busquedaPadre.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  {padresLista
+                    .filter(
+                      (padre) =>
+                        padre.nombre.toLowerCase().includes(busquedaPadre.toLowerCase()) &&
+                        !form.padres.includes(padre._id)
+                    )
+                    .slice(0, 8)
+                    .map((padre) => (
+                      <Paper key={padre._id} variant="outlined" sx={{ p: 1, mb: 1 }}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          justifyContent="space-between"
+                          spacing={2}
+                        >
+                          <Typography variant="body2">{padre.nombre}</Typography>
+                          <IconButton
+                            color="primary"
+                            onClick={() => {
+                              setForm({
+                                ...form,
+                                padres: [...form.padres, padre._id],
+                              });
+                              setBusquedaPadre('');
+                            }}
+                          >
+                            <AddCircleIcon />
+                          </IconButton>
+                        </Stack>
+                      </Paper>
+                    ))}
+                </Box>
+              )}
+            </Box>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={cerrarDialogo}>Cancelar</Button>
-          <Button variant="contained" onClick={guardar} disabled={guardando}>
+          <Button variant="contained" onClick={pedirConfirmacion} disabled={guardando}>
             Guardar
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacion
+        abierto={confirmacionAbierta}
+        modo={editando ? 'editar' : 'crear'}
+        titulo="Niño"
+        campos={camposConfirmacion}
+        cargando={guardando}
+        onCancelar={() => setConfirmacionAbierta(false)}
+        onConfirmar={guardar}
+      />
     </Box>
   );
 }

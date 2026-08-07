@@ -32,6 +32,7 @@ import {
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import {
   LineChart,
   Line,
@@ -77,6 +78,7 @@ export default function Crecimiento() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
+  const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState({
     peso: '',
@@ -137,6 +139,11 @@ export default function Crecimiento() {
     setDialogoAbierto(false);
   };
 
+  const pedirConfirmacion = () => {
+    setDialogoAbierto(false);
+    setConfirmacionAbierta(true);
+  };
+
   const guardar = async () => {
     setGuardando(true);
     setError('');
@@ -149,14 +156,21 @@ export default function Crecimiento() {
         fecha: form.fecha,
       });
 
-      cerrarDialogo();
       await cargarMediciones(ninoSeleccionado);
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al guardar la medición');
     } finally {
       setGuardando(false);
+      setConfirmacionAbierta(false);
+      setDialogoAbierto(false);
     }
   };
+
+  const camposConfirmacion = [
+    { label: 'Peso (kg)', valor: form.peso },
+    { label: 'Talla (cm)', valor: form.talla },
+    { label: 'Fecha', valor: form.fecha },
+  ];
 
   const eliminar = async (id) => {
     const confirmado = window.confirm('¿Eliminar esta medición?');
@@ -195,6 +209,9 @@ export default function Crecimiento() {
             </Button>
             <Button color="inherit" onClick={() => navigate('/crecimiento')}>
               Crecimiento
+            </Button>
+            <Button color="inherit" onClick={() => navigate('/vacunacion')}>
+              Vacunación
             </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -278,7 +295,7 @@ export default function Crecimiento() {
                       mediciones.map((medicion) => (
                         <TableRow key={medicion._id}>
                           <TableCell>
-                            {medicion.fecha ? new Date(medicion.fecha).toLocaleDateString() : '-'}
+                            {medicion.fecha ? new Date(medicion.fecha).toLocaleDateString('es-GT') : '-'}
                           </TableCell>
                           <TableCell>{medicion.edadMeses ?? '-'}</TableCell>
                           <TableCell>{medicion.peso ?? '-'}</TableCell>
@@ -409,11 +426,21 @@ export default function Crecimiento() {
         </DialogContent>
         <DialogActions>
           <Button onClick={cerrarDialogo}>Cancelar</Button>
-          <Button variant="contained" onClick={guardar} disabled={guardando}>
+          <Button variant="contained" onClick={pedirConfirmacion} disabled={guardando}>
             Guardar
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacion
+        abierto={confirmacionAbierta}
+        modo="crear"
+        titulo="Medición"
+        campos={camposConfirmacion}
+        cargando={guardando}
+        onCancelar={() => setConfirmacionAbierta(false)}
+        onConfirmar={guardar}
+      />
     </Box>
   );
 }

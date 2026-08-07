@@ -25,11 +25,13 @@ import {
   Stack,
   IconButton,
   MenuItem,
+  Autocomplete,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 
 export default function Padres() {
   const navigate = useNavigate();
@@ -42,6 +44,7 @@ export default function Padres() {
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [form, setForm] = useState({
     nombre: '',
     dpi: '',
@@ -106,6 +109,11 @@ export default function Padres() {
     setDialogoAbierto(false);
   };
 
+  const pedirConfirmacion = () => {
+    setDialogoAbierto(false);
+    setConfirmacionAbierta(true);
+  };
+
   const guardar = async () => {
     setGuardando(true);
     setError('');
@@ -117,14 +125,28 @@ export default function Padres() {
         await api.post('/padres', form);
       }
 
-      cerrarDialogo();
       await cargarPadres();
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al guardar el padre');
     } finally {
       setGuardando(false);
+      setConfirmacionAbierta(false);
+      setDialogoAbierto(false);
     }
   };
+
+  const camposConfirmacion = [
+    { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
+    { label: 'DPI', valor: form.dpi, valorAnterior: editando?.dpi },
+    { label: 'Teléfono', valor: form.telefono, valorAnterior: editando?.telefono },
+    { label: 'Email', valor: form.email, valorAnterior: editando?.email },
+    { label: 'Canal preferido', valor: form.canalPreferido, valorAnterior: editando?.canalPreferido },
+    {
+      label: 'Comunidad',
+      valor: comunidades.find((c) => c._id === form.comunidad)?.nombre || '',
+      valorAnterior: editando?.comunidad?.nombre,
+    },
+  ];
 
   const eliminar = async (id) => {
     const confirmado = window.confirm('¿Eliminar este padre?');
@@ -163,6 +185,9 @@ export default function Padres() {
             </Button>
             <Button color="inherit" onClick={() => navigate('/crecimiento')}>
               Crecimiento
+            </Button>
+            <Button color="inherit" onClick={() => navigate('/vacunacion')}>
+              Vacunación
             </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -296,29 +321,34 @@ export default function Padres() {
               <MenuItem value="telegram">Telegram</MenuItem>
               <MenuItem value="whatsapp">WhatsApp</MenuItem>
             </TextField>
-            <TextField
-              select
-              label="Comunidad"
-              required
+            <Autocomplete
+              options={comunidades}
+              getOptionLabel={(o) => o.nombre || ''}
+              value={comunidades.find((c) => c._id === form.comunidad) || null}
+              onChange={(e, nuevo) => setForm({ ...form, comunidad: nuevo ? nuevo._id : '' })}
+              isOptionEqualToValue={(o, v) => o._id === v._id}
+              renderInput={(params) => <TextField {...params} label="Comunidad" required />}
               fullWidth
-              value={form.comunidad}
-              onChange={(e) => setForm({ ...form, comunidad: e.target.value })}
-            >
-              {comunidades.map((comunidad) => (
-                <MenuItem key={comunidad._id} value={comunidad._id}>
-                  {comunidad.nombre}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={cerrarDialogo}>Cancelar</Button>
-          <Button variant="contained" onClick={guardar} disabled={guardando}>
+          <Button variant="contained" onClick={pedirConfirmacion} disabled={guardando}>
             Guardar
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacion
+        abierto={confirmacionAbierta}
+        modo={editando ? 'editar' : 'crear'}
+        titulo="Padre"
+        campos={camposConfirmacion}
+        cargando={guardando}
+        onCancelar={() => setConfirmacionAbierta(false)}
+        onConfirmar={guardar}
+      />
     </Box>
   );
 }

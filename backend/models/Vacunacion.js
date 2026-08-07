@@ -4,9 +4,9 @@ const vacunacionSchema = new mongoose.Schema(
   {
     nino: { type: mongoose.Schema.Types.ObjectId, ref: 'Nino', required: true },
     vacuna: { type: mongoose.Schema.Types.ObjectId, ref: 'Vacuna', required: true },
-    fechaAplicada: { type: Date },
+    numeroDosis: { type: Number, required: true },
+    fechaAplicada: { type: Date, required: true },
     proximaDosis: { type: Date },
-    estado: { type: String, enum: ['completa', 'pendiente', 'atrasada'], default: 'pendiente' },
     activo: { type: Boolean, default: true },
   },
   { timestamps: true }

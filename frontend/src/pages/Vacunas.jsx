@@ -24,6 +24,7 @@ import {
   TextField,
   Stack,
   IconButton,
+  MenuItem,
   Chip,
   FormControlLabel,
   Switch,
@@ -33,6 +34,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
+import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 
 export default function Vacunas() {
   const navigate = useNavigate();
@@ -43,12 +45,15 @@ export default function Vacunas() {
   const [error, setError] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
+  const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState({
     nombre: '',
     edadRecomendada: 0,
-    dosis: '',
+    dosisTotales: 1,
+    intervaloValor: 0,
+    intervaloUnidad: 'meses',
     descripcion: '',
   });
 
@@ -76,7 +81,9 @@ export default function Vacunas() {
     setForm({
       nombre: '',
       edadRecomendada: 0,
-      dosis: '',
+      dosisTotales: 1,
+      intervaloValor: 0,
+      intervaloUnidad: 'meses',
       descripcion: '',
     });
     setEditando(null);
@@ -87,7 +94,9 @@ export default function Vacunas() {
     setForm({
       nombre: vacuna.nombre || '',
       edadRecomendada: vacuna.edadRecomendada ?? 0,
-      dosis: vacuna.dosis || '',
+      dosisTotales: vacuna.dosisTotales ?? 1,
+      intervaloValor: vacuna.intervaloValor ?? 0,
+      intervaloUnidad: vacuna.intervaloUnidad || 'meses',
       descripcion: vacuna.descripcion || '',
     });
     setEditando(vacuna);
@@ -98,6 +107,11 @@ export default function Vacunas() {
     setDialogoAbierto(false);
   };
 
+  const pedirConfirmacion = () => {
+    setDialogoAbierto(false);
+    setConfirmacionAbierta(true);
+  };
+
   const guardar = async () => {
     setGuardando(true);
     setError('');
@@ -106,6 +120,8 @@ export default function Vacunas() {
       const payload = {
         ...form,
         edadRecomendada: Number(form.edadRecomendada),
+        dosisTotales: Number(form.dosisTotales),
+        intervaloValor: Number(form.intervaloValor),
       };
 
       if (editando) {
@@ -114,14 +130,31 @@ export default function Vacunas() {
         await api.post('/vacunas', payload);
       }
 
-      cerrarDialogo();
       await cargarVacunas();
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al guardar la vacuna');
     } finally {
       setGuardando(false);
+      setConfirmacionAbierta(false);
+      setDialogoAbierto(false);
     }
   };
+
+  const camposConfirmacion = [
+    { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
+    {
+      label: 'Edad recomendada (meses)',
+      valor: form.edadRecomendada,
+      valorAnterior: editando?.edadRecomendada,
+    },
+    { label: 'Dosis totales', valor: form.dosisTotales, valorAnterior: editando?.dosisTotales },
+    {
+      label: 'Intervalo',
+      valor: `${form.intervaloValor} ${form.intervaloUnidad}`,
+      valorAnterior: editando ? `${editando.intervaloValor} ${editando.intervaloUnidad}` : undefined,
+    },
+    { label: 'Descripción', valor: form.descripcion, valorAnterior: editando?.descripcion },
+  ];
 
   const eliminar = async (id) => {
     const confirmado = window.confirm('¿Eliminar esta vacuna?');
@@ -169,6 +202,9 @@ export default function Vacunas() {
             </Button>
             <Button color="inherit" onClick={() => navigate('/crecimiento')}>
               Crecimiento
+            </Button>
+            <Button color="inherit" onClick={() => navigate('/vacunacion')}>
+              Vacunación
             </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -221,9 +257,9 @@ export default function Vacunas() {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Edad Recomendada (meses)</TableCell>
+                  <TableCell>Edad (meses)</TableCell>
                   <TableCell>Dosis</TableCell>
-                  <TableCell>Descripción</TableCell>
+                  <TableCell>Intervalo</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
@@ -233,9 +269,13 @@ export default function Vacunas() {
                   vacunas.map((vacuna) => (
                     <TableRow key={vacuna._id}>
                       <TableCell>{vacuna.nombre}</TableCell>
-                      <TableCell>{`${vacuna.edadRecomendada} meses`}</TableCell>
-                      <TableCell>{vacuna.dosis}</TableCell>
-                      <TableCell>{vacuna.descripcion}</TableCell>
+                      <TableCell>{vacuna.edadRecomendada ?? '-'}</TableCell>
+                      <TableCell>{vacuna.dosisTotales ?? 1}</TableCell>
+                      <TableCell>
+                        {(vacuna.dosisTotales ?? 1) > 1
+                          ? `${vacuna.intervaloValor ?? 0} ${vacuna.intervaloUnidad ?? 'meses'}`
+                          : '-'}
+                      </TableCell>
                       <TableCell>
                         <Chip
                           color={vacuna.activo ? 'success' : 'default'}
@@ -298,18 +338,37 @@ export default function Vacunas() {
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             />
             <TextField
-              label="Edad Recomendada"
+              label="Edad recomendada (meses)"
               type="number"
               fullWidth
               value={form.edadRecomendada}
               onChange={(e) => setForm({ ...form, edadRecomendada: e.target.value })}
             />
             <TextField
-              label="Dosis"
+              label="Número de dosis"
+              type="number"
               fullWidth
-              value={form.dosis}
-              onChange={(e) => setForm({ ...form, dosis: e.target.value })}
+              value={form.dosisTotales}
+              onChange={(e) => setForm({ ...form, dosisTotales: e.target.value })}
             />
+            <TextField
+              label="Intervalo entre dosis"
+              type="number"
+              fullWidth
+              value={form.intervaloValor}
+              onChange={(e) => setForm({ ...form, intervaloValor: e.target.value })}
+            />
+            <TextField
+              select
+              label="Unidad del intervalo"
+              fullWidth
+              value={form.intervaloUnidad}
+              onChange={(e) => setForm({ ...form, intervaloUnidad: e.target.value })}
+            >
+              <MenuItem value="dias">Días</MenuItem>
+              <MenuItem value="semanas">Semanas</MenuItem>
+              <MenuItem value="meses">Meses</MenuItem>
+            </TextField>
             <TextField
               label="Descripción"
               fullWidth
@@ -322,11 +381,21 @@ export default function Vacunas() {
         </DialogContent>
         <DialogActions>
           <Button onClick={cerrarDialogo}>Cancelar</Button>
-          <Button variant="contained" onClick={guardar} disabled={guardando}>
+          <Button variant="contained" onClick={pedirConfirmacion} disabled={guardando}>
             Guardar
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacion
+        abierto={confirmacionAbierta}
+        modo={editando ? 'editar' : 'crear'}
+        titulo="Vacuna"
+        campos={camposConfirmacion}
+        cargando={guardando}
+        onCancelar={() => setConfirmacionAbierta(false)}
+        onConfirmar={guardar}
+      />
     </Box>
   );
 }

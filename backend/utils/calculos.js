@@ -11,6 +11,24 @@ export function calcularEdadMeses(fechaNacimiento, fechaMedicion) {
   return Math.max(0, meses);
 }
 
+export function calcularProximaDosis(fechaAplicada, intervaloValor, intervaloUnidad) {
+  const proximaFecha = new Date(fechaAplicada);
+  const valor = Number(intervaloValor) || 0;
+
+  if (intervaloUnidad === 'dias') {
+    proximaFecha.setDate(proximaFecha.getDate() + valor);
+    return proximaFecha;
+  }
+
+  if (intervaloUnidad === 'semanas') {
+    proximaFecha.setDate(proximaFecha.getDate() + valor * 7);
+    return proximaFecha;
+  }
+
+  proximaFecha.setMonth(proximaFecha.getMonth() + valor);
+  return proximaFecha;
+}
+
 function erf(x) {
   const t = 1 / (1 + 0.3275911 * Math.abs(x));
   const y =
