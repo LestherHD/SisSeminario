@@ -1,6 +1,7 @@
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
 import Nino from '../models/Nino.js';
 import { calcularEdadMeses, calcularPercentil } from '../utils/calculos.js';
+import { analizarNino } from '../utils/motorAlertas.js';
 
 export async function registrar(req, res) {
   try {
@@ -25,6 +26,12 @@ export async function registrar(req, res) {
       percentilPeso,
       percentilTalla,
     });
+
+    try {
+      await analizarNino(nino);
+    } catch (errorAlertas) {
+      console.error('Error al analizar alertas del niño:', errorAlertas.message);
+    }
 
     return res.status(201).json(registro);
   } catch (error) {

@@ -243,6 +243,9 @@ export default function Vacunacion() {
             <Button color="inherit" onClick={() => navigate('/vacunacion')}>
               Vacunación
             </Button>
+            <Button color="inherit" onClick={() => navigate('/alertas')}>
+              Alertas
+            </Button>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="body1">{usuario?.nombre}</Typography>

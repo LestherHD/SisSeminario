@@ -1,6 +1,7 @@
 import Vacunacion from '../models/Vacunacion.js';
 import Vacuna from '../models/Vacuna.js';
 import { calcularProximaDosis } from '../utils/calculos.js';
+import { analizarNino } from '../utils/motorAlertas.js';
 
 export async function registrar(req, res) {
   try {
@@ -37,6 +38,12 @@ export async function registrar(req, res) {
       fechaAplicada,
       proximaDosis,
     });
+
+    try {
+      await analizarNino(nino);
+    } catch (errorAlertas) {
+      console.error('Error al analizar alertas del niño:', errorAlertas.message);
+    }
 
     return res.status(201).json({
       registro,
