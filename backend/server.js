@@ -10,6 +10,7 @@ import vacunaRoutes from './routes/vacunaRoutes.js';
 import crecimientoRoutes from './routes/crecimientoRoutes.js';
 import vacunacionRoutes from './routes/vacunacionRoutes.js';
 import alertaRoutes from './routes/alertaRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use('/api/vacunas', vacunaRoutes);
 app.use('/api/crecimiento', crecimientoRoutes);
 app.use('/api/vacunacion', vacunacionRoutes);
 app.use('/api/alertas', alertaRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.get('/', (req, res) => {
   res.json({ mensaje: 'API SCCVI funcionando' });
