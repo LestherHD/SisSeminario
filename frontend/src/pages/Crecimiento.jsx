@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -33,6 +33,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import { formatearEdad } from '../utils/edad.js';
 import {
   LineChart,
   Line,
@@ -66,8 +67,11 @@ function formatoFechaHoy() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const KG_A_LIBRAS = 2.20462;
+
 export default function Crecimiento() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { usuario, logout } = useAuth();
   const puedeGestionar =
     usuario?.rol === 'admin' || usuario?.rol === 'encargado' || usuario?.rol === 'personal';
@@ -85,6 +89,7 @@ export default function Crecimiento() {
     talla: '',
     fecha: formatoFechaHoy(),
   });
+  const [pesoLibras, setPesoLibras] = useState('');
 
   const cargarNinos = async () => {
     try {
@@ -119,6 +124,21 @@ export default function Crecimiento() {
   }, []);
 
   useEffect(() => {
+    const ninoIdParam = searchParams.get('nino');
+
+    if (!ninoIdParam || ninos.length === 0) {
+      return;
+    }
+
+    const nino = ninos.find((n) => n._id === ninoIdParam);
+
+    if (nino) {
+      setNinoObj(nino);
+      setNinoSeleccionado(nino._id);
+    }
+  }, [ninos, searchParams]);
+
+  useEffect(() => {
     cargarMediciones(ninoSeleccionado);
   }, [ninoSeleccionado]);
 
@@ -132,6 +152,7 @@ export default function Crecimiento() {
       talla: '',
       fecha: formatoFechaHoy(),
     });
+    setPesoLibras('');
     setDialogoAbierto(true);
   };
 
@@ -167,7 +188,10 @@ export default function Crecimiento() {
   };
 
   const camposConfirmacion = [
-    { label: 'Peso (kg)', valor: form.peso },
+    {
+      label: 'Peso',
+      valor: `${form.peso} kg (${(form.peso * KG_A_LIBRAS).toFixed(1)} lb)`,
+    },
     { label: 'Talla (cm)', valor: form.talla },
     { label: 'Fecha', valor: form.fecha },
   ];
@@ -245,6 +269,16 @@ export default function Crecimiento() {
           noOptionsText="No se encontraron niños"
         />
 
+        {ninoObj && (
+          <Box sx={{ mb: 2 }}>
+            <Chip
+              label={`Edad: ${formatearEdad(ninoObj.fechaNacimiento)}`}
+              color="primary"
+              variant="outlined"
+            />
+          </Box>
+        )}
+
         {!ninoSeleccionado && (
           <Alert severity="info" sx={{ mb: 3 }}>
             Selecciona un niño para ver su historial de crecimiento.
@@ -301,7 +335,11 @@ export default function Crecimiento() {
                             {medicion.fecha ? new Date(medicion.fecha).toLocaleDateString('es-GT') : '-'}
                           </TableCell>
                           <TableCell>{medicion.edadMeses ?? '-'}</TableCell>
-                          <TableCell>{medicion.peso ?? '-'}</TableCell>
+                          <TableCell>
+                            {medicion.peso != null
+                              ? `${medicion.peso} kg (${(medicion.peso * KG_A_LIBRAS).toFixed(1)} lb)`
+                              : '-'}
+                          </TableCell>
                           <TableCell>{medicion.talla ?? '-'}</TableCell>
                           <TableCell>
                             <Chip
@@ -403,13 +441,35 @@ export default function Crecimiento() {
         <DialogTitle>Nueva Medición</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Peso (kg)"
-              type="number"
-              required
-              value={form.peso}
-              onChange={(e) => setForm({ ...form, peso: e.target.value })}
-            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="Peso (kg)"
+                type="number"
+                required
+                fullWidth
+                value={form.peso}
+                onChange={(e) => {
+                  const kg = e.target.value;
+                  setForm({ ...form, peso: kg });
+                  setPesoLibras(kg === '' ? '' : (Number(kg) * KG_A_LIBRAS).toFixed(1));
+                }}
+              />
+              <TextField
+                label="Peso (libras)"
+                type="number"
+                required
+                fullWidth
+                value={pesoLibras}
+                onChange={(e) => {
+                  const libras = e.target.value;
+                  setPesoLibras(libras);
+                  setForm({
+                    ...form,
+                    peso: libras === '' ? '' : (Number(libras) / KG_A_LIBRAS).toFixed(2),
+                  });
+                }}
+              />
+            </Stack>
             <TextField
               label="Talla (cm)"
               type="number"

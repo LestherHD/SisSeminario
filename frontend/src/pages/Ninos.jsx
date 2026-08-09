@@ -39,6 +39,7 @@ import RestoreIcon from '@mui/icons-material/Restore';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import { formatearEdad } from '../utils/edad.js';
 
 export default function Ninos() {
   const navigate = useNavigate();
@@ -290,6 +291,7 @@ export default function Ninos() {
                 <TableRow>
                   <TableCell>Nombre</TableCell>
                   <TableCell>Fecha Nac.</TableCell>
+                  <TableCell>Edad</TableCell>
                   <TableCell>Sexo</TableCell>
                   <TableCell>Comunidad</TableCell>
                   <TableCell>Padres</TableCell>
@@ -303,6 +305,7 @@ export default function Ninos() {
                     <TableRow key={nino._id}>
                       <TableCell>{nino.nombre}</TableCell>
                       <TableCell>{new Date(nino.fechaNacimiento).toLocaleDateString('es-GT')}</TableCell>
+                      <TableCell>{formatearEdad(nino.fechaNacimiento)}</TableCell>
                       <TableCell>{nino.sexo}</TableCell>
                       <TableCell>{nino.comunidad?.nombre}</TableCell>
                       <TableCell>{nino.padres?.map((padre) => padre.nombre).join(', ')}</TableCell>
@@ -345,7 +348,7 @@ export default function Ninos() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={8} align="center">
                       No hay niños registrados
                     </TableCell>
                   </TableRow>

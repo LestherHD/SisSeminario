@@ -21,6 +21,9 @@ import {
   IconButton,
   Stack,
   Tooltip,
+  TextField,
+  MenuItem,
+  InputAdornment,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -28,6 +31,15 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import WarningIcon from '@mui/icons-material/Warning';
 import ErrorIcon from '@mui/icons-material/Error';
+import SearchIcon from '@mui/icons-material/Search';
+import BuildIcon from '@mui/icons-material/Build';
+
+const RUTA_POR_MOTIVO = {
+  sin_registros: '/crecimiento',
+  desnutricion: '/crecimiento',
+  sobrepeso: '/crecimiento',
+  vacuna_atrasada: '/vacunacion',
+};
 
 const ETIQUETAS_MOTIVO = {
   desnutricion: 'Desnutrición',
@@ -45,6 +57,8 @@ export default function Alertas() {
   const [error, setError] = useState('');
   const [analizando, setAnalizando] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('todas');
 
   const cargarAlertas = async () => {
     setCargando(true);
@@ -101,6 +115,17 @@ export default function Alertas() {
       setError(error.response?.data?.mensaje || 'Error al eliminar la alerta');
     }
   };
+
+  const resolver = (alerta) => {
+    const ruta = RUTA_POR_MOTIVO[alerta.motivo] || '/crecimiento';
+    navigate(`${ruta}?nino=${alerta.nino?._id}`);
+  };
+
+  const alertasFiltradas = alertas.filter((a) => {
+    const coincideNombre = a.nino?.nombre?.toLowerCase().includes(busqueda.toLowerCase());
+    const coincideTipo = filtroTipo === 'todas' || a.tipo === filtroTipo;
+    return coincideNombre && coincideTipo;
+  });
 
   return (
     <Box>
@@ -182,76 +207,116 @@ export default function Alertas() {
             <CircularProgress />
           </Box>
         ) : (
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Tipo</TableCell>
-                  <TableCell>Niño</TableCell>
-                  <TableCell>Motivo</TableCell>
-                  <TableCell>Mensaje</TableCell>
-                  <TableCell>Fecha</TableCell>
-                  <TableCell>Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {alertas.length > 0 ? (
-                  alertas.map((alerta) => (
-                    <TableRow key={alerta._id} sx={alerta.atendida ? { opacity: 0.6 } : undefined}>
-                      <TableCell>
-                        {alerta.tipo === 'critica' ? (
-                          <Chip color="error" icon={<ErrorIcon />} label="Crítica" size="small" />
-                        ) : (
-                          <Chip
-                            color="warning"
-                            icon={<WarningIcon />}
-                            label="Preventiva"
-                            size="small"
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>{alerta.nino?.nombre || '-'}</TableCell>
-                      <TableCell>
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={ETIQUETAS_MOTIVO[alerta.motivo] || alerta.motivo}
-                        />
-                      </TableCell>
-                      <TableCell>{alerta.mensaje}</TableCell>
-                      <TableCell>
-                        {alerta.fecha ? new Date(alerta.fecha).toLocaleDateString('es-GT') : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          {alerta.atendida ? (
-                            <Chip color="success" size="small" label="Atendida" />
+          <>
+            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+              <TextField
+                label="Buscar por niño"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                sx={{ width: 300 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <TextField
+                select
+                label="Tipo"
+                value={filtroTipo}
+                onChange={(e) => setFiltroTipo(e.target.value)}
+                sx={{ width: 180 }}
+              >
+                <MenuItem value="todas">Todas</MenuItem>
+                <MenuItem value="critica">Críticas</MenuItem>
+                <MenuItem value="preventiva">Preventivas</MenuItem>
+              </TextField>
+            </Stack>
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Mostrando {alertasFiltradas.length} de {alertas.length} alertas
+            </Typography>
+
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Tipo</TableCell>
+                    <TableCell>Niño</TableCell>
+                    <TableCell>Motivo</TableCell>
+                    <TableCell>Mensaje</TableCell>
+                    <TableCell>Fecha</TableCell>
+                    <TableCell>Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {alertasFiltradas.length > 0 ? (
+                    alertasFiltradas.map((alerta) => (
+                      <TableRow key={alerta._id} sx={alerta.atendida ? { opacity: 0.6 } : undefined}>
+                        <TableCell>
+                          {alerta.tipo === 'critica' ? (
+                            <Chip color="error" icon={<ErrorIcon />} label="Crítica" size="small" />
                           ) : (
-                            <Tooltip title="Marcar como atendida">
-                              <IconButton color="success" onClick={() => atender(alerta._id)}>
-                                <CheckCircleIcon />
+                            <Chip
+                              color="warning"
+                              icon={<WarningIcon />}
+                              label="Preventiva"
+                              size="small"
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>{alerta.nino?.nombre || '-'}</TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={ETIQUETAS_MOTIVO[alerta.motivo] || alerta.motivo}
+                          />
+                        </TableCell>
+                        <TableCell>{alerta.mensaje}</TableCell>
+                        <TableCell>
+                          {alerta.fecha ? new Date(alerta.fecha).toLocaleDateString('es-GT') : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Tooltip title="Resolver">
+                              <IconButton color="primary" onClick={() => resolver(alerta)}>
+                                <BuildIcon />
                               </IconButton>
                             </Tooltip>
-                          )}
-                          {puedeGestionar && (
-                            <IconButton color="error" onClick={() => eliminar(alerta._id)}>
-                              <DeleteIcon />
-                            </IconButton>
-                          )}
-                        </Stack>
+                            {alerta.atendida ? (
+                              <Chip color="success" size="small" label="Atendida" />
+                            ) : (
+                              <Tooltip title="Marcar como atendida">
+                                <IconButton color="success" onClick={() => atender(alerta._id)}>
+                                  <CheckCircleIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            {puedeGestionar && (
+                              <IconButton color="error" onClick={() => eliminar(alerta._id)}>
+                                <DeleteIcon />
+                              </IconButton>
+                            )}
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        {alertas.length > 0
+                          ? 'No se encontraron alertas con ese criterio.'
+                          : 'No hay alertas activas. Todo en orden.'}
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      No hay alertas activas. Todo en orden.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
         )}
       </Box>
     </Box>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -33,28 +33,15 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import VaccinesIcon from '@mui/icons-material/Vaccines';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import { formatearEdad } from '../utils/edad.js';
 
 function formatoFechaHoy() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function calcularEdadMeses(fechaNacimiento) {
-  const nacimiento = new Date(fechaNacimiento);
-  const hoy = new Date();
-
-  let meses =
-    (hoy.getFullYear() - nacimiento.getFullYear()) * 12 +
-    (hoy.getMonth() - nacimiento.getMonth());
-
-  if (hoy.getDate() < nacimiento.getDate()) {
-    meses -= 1;
-  }
-
-  return Math.max(0, meses);
-}
-
 export default function Vacunacion() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { usuario, logout } = useAuth();
   const puedeGestionar =
     usuario?.rol === 'admin' || usuario?.rol === 'encargado' || usuario?.rol === 'personal';
@@ -122,6 +109,21 @@ export default function Vacunacion() {
     cargarNinos();
     cargarVacunasCatalogo();
   }, []);
+
+  useEffect(() => {
+    const ninoIdParam = searchParams.get('nino');
+
+    if (!ninoIdParam || ninos.length === 0) {
+      return;
+    }
+
+    const nino = ninos.find((n) => n._id === ninoIdParam);
+
+    if (nino) {
+      setNinoObj(nino);
+      setNinoSeleccionado(nino._id);
+    }
+  }, [ninos, searchParams]);
 
   useEffect(() => {
     cargarRegistros(ninoSeleccionado);
@@ -280,18 +282,11 @@ export default function Vacunacion() {
 
         {ninoObj && (
           <Box sx={{ mb: 2 }}>
-            {(() => {
-              const meses = calcularEdadMeses(ninoObj.fechaNacimiento);
-              const anios = Math.floor(meses / 12);
-              const mesesRestantes = meses % 12;
-              return (
-                <Chip
-                  label={`Edad: ${meses} meses (${anios} años ${mesesRestantes} meses)`}
-                  color="primary"
-                  variant="outlined"
-                />
-              );
-            })()}
+            <Chip
+              label={`Edad: ${formatearEdad(ninoObj.fechaNacimiento)}`}
+              color="primary"
+              variant="outlined"
+            />
           </Box>
         )}
 

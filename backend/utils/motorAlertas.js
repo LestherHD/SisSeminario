@@ -20,33 +20,13 @@ export async function analizarNino(ninoId) {
   const nino = await Nino.findById(ninoId);
 
   if (!nino || !nino.activo) {
-    return [];
+    return { creadas: [], resueltas: 0 };
   }
-
-  const candidatas = [];
 
   const ultimoRegistro = await RegistroCrecimiento.findOne({
     nino: ninoId,
     activo: true,
   }).sort({ fecha: -1 });
-
-  if (ultimoRegistro) {
-    if (ultimoRegistro.percentilPeso < 5) {
-      candidatas.push({
-        nino: ninoId,
-        tipo: 'critica',
-        motivo: 'desnutricion',
-        mensaje: `El niño ${nino.nombre} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible desnutrición). Se recomienda evaluación.`,
-      });
-    } else if (ultimoRegistro.percentilPeso > 95) {
-      candidatas.push({
-        nino: ninoId,
-        tipo: 'preventiva',
-        motivo: 'sobrepeso',
-        mensaje: `El niño ${nino.nombre} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible sobrepeso).`,
-      });
-    }
-  }
 
   const haceTresMeses = new Date(Date.now() - TRES_MESES_MS);
   const registroReciente = await RegistroCrecimiento.findOne({
@@ -55,42 +35,65 @@ export async function analizarNino(ninoId) {
     fecha: { $gte: haceTresMeses },
   });
 
-  if (!registroReciente) {
-    candidatas.push({
-      nino: ninoId,
-      tipo: 'preventiva',
-      motivo: 'sin_registros',
-      mensaje: `El niño ${nino.nombre} no tiene controles de crecimiento recientes (más de 3 meses).`,
-    });
-  }
-
   const dosisAtrasada = await Vacunacion.findOne({
     nino: ninoId,
     activo: true,
     proximaDosis: { $exists: true, $ne: null, $lt: new Date() },
   });
 
-  if (dosisAtrasada) {
-    candidatas.push({
-      nino: ninoId,
+  const evaluaciones = {
+    desnutricion: {
+      activa: Boolean(ultimoRegistro && ultimoRegistro.percentilPeso < 5),
+      tipo: 'critica',
+      mensaje: ultimoRegistro
+        ? `El niño ${nino.nombre} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible desnutrición). Se recomienda evaluación.`
+        : '',
+    },
+    sobrepeso: {
+      activa: Boolean(ultimoRegistro && ultimoRegistro.percentilPeso > 95),
       tipo: 'preventiva',
-      motivo: 'vacuna_atrasada',
+      mensaje: ultimoRegistro
+        ? `El niño ${nino.nombre} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible sobrepeso).`
+        : '',
+    },
+    sin_registros: {
+      activa: !registroReciente,
+      tipo: 'preventiva',
+      mensaje: `El niño ${nino.nombre} no tiene controles de crecimiento recientes (más de 3 meses).`,
+    },
+    vacuna_atrasada: {
+      activa: Boolean(dosisAtrasada),
+      tipo: 'preventiva',
       mensaje: `El niño ${nino.nombre} tiene una o más dosis de vacuna atrasadas.`,
-    });
-  }
+    },
+  };
 
-  const alertasCreadas = [];
+  const creadas = [];
+  let resueltas = 0;
 
-  for (const candidata of candidatas) {
-    const yaExiste = await existeAlertaActiva(ninoId, candidata.motivo);
+  for (const [motivo, evaluacion] of Object.entries(evaluaciones)) {
+    if (evaluacion.activa) {
+      const yaExiste = await existeAlertaActiva(ninoId, motivo);
 
-    if (!yaExiste) {
-      const alertaCreada = await Alerta.create(candidata);
-      alertasCreadas.push(alertaCreada);
+      if (!yaExiste) {
+        const alertaCreada = await Alerta.create({
+          nino: ninoId,
+          tipo: evaluacion.tipo,
+          motivo,
+          mensaje: evaluacion.mensaje,
+        });
+        creadas.push(alertaCreada);
+      }
+    } else {
+      const resultado = await Alerta.updateMany(
+        { nino: ninoId, motivo, activo: true },
+        { activo: false }
+      );
+      resueltas += resultado.modifiedCount || 0;
     }
   }
 
-  return alertasCreadas;
+  return { creadas, resueltas };
 }
 
 export async function analizarTodos() {
@@ -99,8 +102,8 @@ export async function analizarTodos() {
   let total = 0;
 
   for (const nino of ninos) {
-    const alertasCreadas = await analizarNino(nino._id);
-    total += alertasCreadas.length;
+    const resultado = await analizarNino(nino._id);
+    total += resultado.creadas.length;
   }
 
   return total;
