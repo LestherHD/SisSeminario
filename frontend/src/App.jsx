@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import Comunidades from './pages/Comunidades.jsx';
 import Padres from './pages/Padres.jsx';
 import Ninos from './pages/Ninos.jsx';
@@ -20,7 +21,11 @@ function App() {
     <Routes>
       <Route
         path="/login"
-        element={usuario ? <Navigate to="/comunidades" /> : <Login />}
+        element={usuario ? <Navigate to="/dashboard" /> : <Login />}
+      />
+      <Route
+        path="/dashboard"
+        element={usuario ? <Dashboard /> : <Navigate to="/login" />}
       />
       <Route
         path="/comunidades"
@@ -54,7 +59,7 @@ function App() {
       />
       <Route
         path="/"
-        element={<Navigate to={usuario ? '/comunidades' : '/login'} />}
+        element={<Navigate to={usuario ? '/dashboard' : '/login'} />}
       />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

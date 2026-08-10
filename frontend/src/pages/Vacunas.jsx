@@ -188,6 +188,9 @@ export default function Vacunas() {
             SCCVI
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Button color="inherit" onClick={() => navigate('/dashboard')}>
+              Dashboard
+            </Button>
             <Button color="inherit" onClick={() => navigate('/comunidades')}>
               Comunidades
             </Button>
