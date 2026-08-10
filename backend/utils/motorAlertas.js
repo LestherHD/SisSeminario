@@ -2,6 +2,9 @@ import Nino from '../models/Nino.js';
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
 import Vacunacion from '../models/Vacunacion.js';
 import Alerta from '../models/Alerta.js';
+import Padre from '../models/Padre.js';
+import Notificacion from '../models/Notificacion.js';
+import { enviarMensajeTelegram } from '../services/telegramService.js';
 
 const TRES_MESES_MS = 1000 * 60 * 60 * 24 * 30 * 3;
 
@@ -14,6 +17,47 @@ async function existeAlertaActiva(ninoId, motivo) {
   });
 
   return Boolean(alerta);
+}
+
+async function notificarAlertaCritica(alerta) {
+  if (alerta.tipo !== 'critica') {
+    return;
+  }
+
+  try {
+    const nino = await Nino.findById(alerta.nino).populate('padres');
+    const padres = nino?.padres || [];
+
+    for (const padre of padres) {
+      if (!padre.telegramChatId) {
+        continue;
+      }
+
+      const yaNotificado = await Notificacion.findOne({
+        alerta: alerta._id,
+        padre: padre._id,
+        estado: 'enviada',
+      });
+
+      if (yaNotificado) {
+        continue;
+      }
+
+      const mensaje = `🚨 <b>SCCVI - Alerta Crítica</b>\n\nEstimado/a ${padre.nombre},\n\n${alerta.mensaje}\n\n<b>Por favor acuda al centro de salud lo antes posible.</b>`;
+      const resultado = await enviarMensajeTelegram(padre.telegramChatId, mensaje);
+
+      await Notificacion.create({
+        padre: padre._id,
+        alerta: alerta._id,
+        canal: 'telegram',
+        mensaje,
+        estado: resultado.exito ? 'enviada' : 'fallida',
+        fechaEnvio: new Date(),
+      });
+    }
+  } catch (error) {
+    console.error('Error notificando alerta crítica:', error.message);
+  }
 }
 
 export async function analizarNino(ninoId) {
@@ -83,6 +127,10 @@ export async function analizarNino(ninoId) {
           mensaje: evaluacion.mensaje,
         });
         creadas.push(alertaCreada);
+
+        if (alertaCreada.tipo === 'critica') {
+          await notificarAlertaCritica(alertaCreada);
+        }
       }
     } else {
       const resultado = await Alerta.updateMany(

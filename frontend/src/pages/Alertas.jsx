@@ -33,6 +33,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import ErrorIcon from '@mui/icons-material/Error';
 import SearchIcon from '@mui/icons-material/Search';
 import BuildIcon from '@mui/icons-material/Build';
+import SendIcon from '@mui/icons-material/Send';
 
 const RUTA_POR_MOTIVO = {
   sin_registros: '/crecimiento',
@@ -113,6 +114,15 @@ export default function Alertas() {
       await cargarAlertas();
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al eliminar la alerta');
+    }
+  };
+
+  const notificar = async (alertaId) => {
+    try {
+      const response = await api.post('/notificaciones/alerta', { alertaId });
+      setMensaje(response.data?.mensaje || '');
+    } catch (error) {
+      setError(error.response?.data?.mensaje || 'Error al notificar a los padres');
     }
   };
 
@@ -289,6 +299,13 @@ export default function Alertas() {
                                 <BuildIcon />
                               </IconButton>
                             </Tooltip>
+                            {puedeGestionar && (
+                              <Tooltip title="Notificar a los padres">
+                                <IconButton color="info" onClick={() => notificar(alerta._id)}>
+                                  <SendIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
                             {alerta.atendida ? (
                               <Chip color="success" size="small" label="Atendida" />
                             ) : (

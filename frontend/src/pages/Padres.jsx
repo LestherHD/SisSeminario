@@ -26,6 +26,7 @@ import {
   IconButton,
   MenuItem,
   Autocomplete,
+  Chip,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
@@ -51,6 +52,7 @@ export default function Padres() {
     telefono: '',
     email: '',
     canalPreferido: 'email',
+    telegramChatId: '',
     comunidad: '',
   });
 
@@ -86,6 +88,7 @@ export default function Padres() {
       telefono: '',
       email: '',
       canalPreferido: 'email',
+      telegramChatId: '',
       comunidad: '',
     });
     setEditando(null);
@@ -99,6 +102,7 @@ export default function Padres() {
       telefono: padre.telefono || '',
       email: padre.email || '',
       canalPreferido: padre.canalPreferido || 'email',
+      telegramChatId: padre.telegramChatId || '',
       comunidad: padre.comunidad?._id || '',
     });
     setEditando(padre);
@@ -141,6 +145,7 @@ export default function Padres() {
     { label: 'Teléfono', valor: form.telefono, valorAnterior: editando?.telefono },
     { label: 'Email', valor: form.email, valorAnterior: editando?.email },
     { label: 'Canal preferido', valor: form.canalPreferido, valorAnterior: editando?.canalPreferido },
+    { label: 'Telegram Chat ID', valor: form.telegramChatId, valorAnterior: editando?.telegramChatId },
     {
       label: 'Comunidad',
       valor: comunidades.find((c) => c._id === form.comunidad)?.nombre || '',
@@ -251,7 +256,14 @@ export default function Padres() {
                       <TableCell>{padre.dpi}</TableCell>
                       <TableCell>{padre.telefono}</TableCell>
                       <TableCell>{padre.email}</TableCell>
-                      <TableCell>{padre.canalPreferido}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <span>{padre.canalPreferido}</span>
+                          {padre.telegramChatId && (
+                            <Chip label="TG" color="info" size="small" />
+                          )}
+                        </Stack>
+                      </TableCell>
                       <TableCell>{padre.comunidad?.nombre}</TableCell>
                       <TableCell>
                         {puedeGestionar ? (
@@ -327,6 +339,13 @@ export default function Padres() {
               <MenuItem value="telegram">Telegram</MenuItem>
               <MenuItem value="whatsapp">WhatsApp</MenuItem>
             </TextField>
+            <TextField
+              label="Telegram Chat ID"
+              fullWidth
+              value={form.telegramChatId}
+              onChange={(e) => setForm({ ...form, telegramChatId: e.target.value })}
+              helperText="Número de chat de Telegram del padre (opcional). El padre debe escribir primero al bot."
+            />
             <Autocomplete
               options={comunidades}
               getOptionLabel={(o) => o.nombre || ''}

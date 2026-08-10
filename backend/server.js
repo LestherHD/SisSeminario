@@ -11,6 +11,8 @@ import crecimientoRoutes from './routes/crecimientoRoutes.js';
 import vacunacionRoutes from './routes/vacunacionRoutes.js';
 import alertaRoutes from './routes/alertaRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import notificacionRoutes from './routes/notificacionRoutes.js';
+import { iniciarPolling } from './services/telegramBot.js';
 
 dotenv.config();
 
@@ -26,6 +28,7 @@ app.use('/api/crecimiento', crecimientoRoutes);
 app.use('/api/vacunacion', vacunacionRoutes);
 app.use('/api/alertas', alertaRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notificaciones', notificacionRoutes);
 
 app.get('/', (req, res) => {
   res.json({ mensaje: 'API SCCVI funcionando' });
@@ -37,5 +40,9 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ Conectado a MongoDB');
     app.listen(PORT, () => console.log(`🚀 Servidor en http://localhost:${PORT}`));
+
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      iniciarPolling();
+    }
   })
   .catch((err) => console.error('❌ Error de conexión a MongoDB:', err.message));
