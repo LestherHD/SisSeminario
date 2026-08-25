@@ -74,7 +74,7 @@ export default function Dashboard() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
             Panel de Control
           </Typography>
         </Box>

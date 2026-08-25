@@ -147,7 +147,7 @@ export default function Alertas() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
             Alertas de Salud
           </Typography>
           <Stack direction="row" spacing={2} alignItems="center">

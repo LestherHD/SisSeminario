@@ -27,6 +27,7 @@ function AppConTema() {
                 primary: { main: '#118AB2' },
                 secondary: { main: '#073B4C' },
                 background: { default: '#f5f7fa', paper: '#ffffff' },
+                text: { primary: '#263041' },
               },
         typography: { fontFamily: 'system-ui, Roboto, sans-serif' },
         shape: { borderRadius: 8 },

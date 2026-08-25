@@ -266,7 +266,7 @@ export default function Ninos() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
             Niños
           </Typography>
           <Stack direction="row" spacing={2} alignItems="center">

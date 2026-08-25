@@ -227,7 +227,7 @@ export default function Vacunacion() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
             Control de Vacunación
           </Typography>
         </Box>

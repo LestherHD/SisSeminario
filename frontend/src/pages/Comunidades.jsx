@@ -158,7 +158,7 @@ export default function Comunidades() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
             Comunidades
           </Typography>
           <Stack direction="row" spacing={2} alignItems="center">

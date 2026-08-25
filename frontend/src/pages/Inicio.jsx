@@ -22,7 +22,7 @@ export default function Inicio() {
         style={{ width: 220, maxWidth: '60%', marginBottom: 24 }}
       />
 
-      <Typography variant="h4" color="primary" sx={{ fontWeight: 700, mb: 1 }}>
+      <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
         Bienvenido al Sistema de Control de Crecimiento y Vacunación Infantil
       </Typography>
 

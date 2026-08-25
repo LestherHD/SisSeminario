@@ -57,7 +57,7 @@ export default function Layout() {
   const { modo, toggleModo } = useThemeMode();
   const [movilAbierto, setMovilAbierto] = useState(false);
   const [anclaMenu, setAnclaMenu] = useState(null);
-  const colorSidebar = modo === 'dark' ? '#263041' : '#118AB2';
+  const colorSidebar = '#263041';
 
   const irA = (ruta) => {
     navigate(ruta);
@@ -74,7 +74,7 @@ export default function Layout() {
   };
 
   const contenidoSidebar = (
-    <Box sx={{ height: '100%', bgcolor: colorSidebar, display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100%', bgcolor: colorSidebar, color: '#fff', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ px: 3, py: 3 }}>
         <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, fontSize: '1.4rem' }}>
           SCCVI
@@ -103,8 +103,12 @@ export default function Layout() {
                 <ListItemIcon sx={{ color: '#fff', minWidth: 42 }}>{seccion.icono}</ListItemIcon>
                 <ListItemText
                   primary={seccion.texto}
-                  primaryTypographyProps={{
-                    sx: { color: '#fff', fontWeight: 600, fontSize: '1rem' },
+                  sx={{
+                    '& .MuiListItemText-primary': {
+                      color: '#fff',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                    },
                   }}
                 />
               </ListItemButton>
