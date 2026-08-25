@@ -29,7 +29,11 @@ import HealthAndSafetyRounded from '@mui/icons-material/HealthAndSafetyRounded';
 import NotificationsActiveRounded from '@mui/icons-material/NotificationsActiveRounded';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
 import MenuRounded from '@mui/icons-material/MenuRounded';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
+import Tooltip from '@mui/material/Tooltip';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useThemeMode } from '../context/ThemeContext.jsx';
 
 const anchoSidebar = 260;
 
@@ -50,8 +54,10 @@ export default function Layout() {
   const theme = useTheme();
   const esMovil = useMediaQuery(theme.breakpoints.down('md'));
   const { usuario, logout } = useAuth();
+  const { modo, toggleModo } = useThemeMode();
   const [movilAbierto, setMovilAbierto] = useState(false);
   const [anclaMenu, setAnclaMenu] = useState(null);
+  const colorSidebar = modo === 'dark' ? '#263041' : '#118AB2';
 
   const irA = (ruta) => {
     navigate(ruta);
@@ -68,12 +74,12 @@ export default function Layout() {
   };
 
   const contenidoSidebar = (
-    <Box sx={{ height: '100%', bgcolor: 'primary.main', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100%', bgcolor: colorSidebar, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ px: 3, py: 3 }}>
-        <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>
+        <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, fontSize: '1.4rem' }}>
           SCCVI
         </Typography>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+        <Typography variant="caption" sx={{ color: '#fff', opacity: 0.8 }}>
           Centro de Salud Infantil
         </Typography>
       </Box>
@@ -94,11 +100,11 @@ export default function Layout() {
                   '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
                 }}
               >
-                <ListItemIcon sx={{ color: '#fff', minWidth: 40 }}>{seccion.icono}</ListItemIcon>
+                <ListItemIcon sx={{ color: '#fff', minWidth: 42 }}>{seccion.icono}</ListItemIcon>
                 <ListItemText
                   primary={seccion.texto}
                   primaryTypographyProps={{
-                    sx: { color: '#fff', fontWeight: activo ? 700 : 500 },
+                    sx: { color: '#fff', fontWeight: 600, fontSize: '1rem' },
                   }}
                 />
               </ListItemButton>
@@ -115,7 +121,7 @@ export default function Layout() {
         position="fixed"
         elevation={1}
         sx={{
-          bgcolor: '#fff',
+          bgcolor: 'background.paper',
           color: 'text.primary',
           width: { md: `calc(100% - ${anchoSidebar}px)` },
           ml: { md: `${anchoSidebar}px` },
@@ -131,6 +137,11 @@ export default function Layout() {
           )}
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title="Cambiar tema">
+              <IconButton onClick={toggleModo} color="inherit">
+                {modo === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+              </IconButton>
+            </Tooltip>
             <Typography variant="body2">{usuario?.nombre}</Typography>
             <IconButton onClick={(e) => setAnclaMenu(e.currentTarget)}>
               <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>

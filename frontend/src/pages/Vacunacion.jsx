@@ -28,7 +28,6 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import VaccinesIcon from '@mui/icons-material/Vaccines';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import { formatearEdad } from '../utils/edad.js';
 
@@ -228,12 +227,9 @@ export default function Vacunacion() {
             gap: 2,
           }}
         >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <VaccinesIcon fontSize="large" />
-            <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
-              Control de Vacunación
-            </Typography>
-          </Stack>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+            Control de Vacunación
+          </Typography>
         </Box>
 
         <Autocomplete
