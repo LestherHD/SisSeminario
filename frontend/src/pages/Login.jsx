@@ -40,17 +40,22 @@ export default function Login() {
       sx={{
         minHeight: '100vh',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: '#f5f5f5',
+        bgcolor: '#263041',
         px: 2,
       }}
     >
-      <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: 400 }}>
-        <Typography variant="h5" component="h1" sx={{ mb: 3, fontWeight: 600 }}>
-          SCCVI - Iniciar Sesión
-        </Typography>
+      <Typography
+        variant="h4"
+        component="h1"
+        sx={{ mb: 4, fontWeight: 700, color: '#ffffff' }}
+      >
+        Sistema de Control de Carnet de Vacunación Infantil
+      </Typography>
 
+      <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: 400 }}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -76,6 +81,8 @@ export default function Login() {
             onChange={(e) => setPassword(e.target.value)}
             sx={{ mb: 3 }}
           />
+
+          
           <Button type="submit" variant="contained" fullWidth disabled={cargando}>
             {cargando ? <CircularProgress size={24} color="inherit" /> : 'Ingresar'}
           </Button>
