@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Paper, TextField, Button, Typography, Alert, CircularProgress } from '@mui/material';
+import {
+  Box,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Alert,
+  CircularProgress,
+  Divider,
+} from '@mui/material';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Login() {
@@ -71,6 +80,19 @@ export default function Login() {
             {cargando ? <CircularProgress size={24} color="inherit" /> : 'Ingresar'}
           </Button>
         </Box>
+
+        <Divider sx={{ my: 3 }} />
+
+        <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 1 }}>
+          ¿Eres padre o tutor?
+        </Typography>
+        <Button
+          variant="outlined"
+          fullWidth
+          onClick={() => navigate('/consultar')}
+        >
+          Consultar carnet de mi hijo/a
+        </Button>
       </Paper>
     </Box>
   );

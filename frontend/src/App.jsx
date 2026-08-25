@@ -8,6 +8,7 @@ import Vacunas from './pages/Vacunas.jsx';
 import Crecimiento from './pages/Crecimiento.jsx';
 import Vacunacion from './pages/Vacunacion.jsx';
 import Alertas from './pages/Alertas.jsx';
+import ConsultarCarnet from './pages/ConsultarCarnet.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 function App() {
@@ -23,6 +24,8 @@ function App() {
         path="/login"
         element={usuario ? <Navigate to="/dashboard" /> : <Login />}
       />
+      <Route path="/consultar" element={<ConsultarCarnet />} />
+      <Route path="/carnet/:codigo" element={<ConsultarCarnet />} />
       <Route
         path="/dashboard"
         element={usuario ? <Dashboard /> : <Navigate to="/login" />}
