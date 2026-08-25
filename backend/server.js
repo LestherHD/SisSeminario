@@ -12,6 +12,7 @@ import vacunacionRoutes from './routes/vacunacionRoutes.js';
 import alertaRoutes from './routes/alertaRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import notificacionRoutes from './routes/notificacionRoutes.js';
+import carnetRoutes from './routes/carnetRoutes.js';
 import { iniciarPolling } from './services/telegramBot.js';
 
 dotenv.config();
@@ -29,6 +30,7 @@ app.use('/api/vacunacion', vacunacionRoutes);
 app.use('/api/alertas', alertaRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notificaciones', notificacionRoutes);
+app.use('/api/carnet', carnetRoutes);
 
 app.get('/', (req, res) => {
   res.json({ mensaje: 'API SCCVI funcionando' });

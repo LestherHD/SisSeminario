@@ -8,6 +8,7 @@ const ninoSchema = new mongoose.Schema(
     comunidad: { type: mongoose.Schema.Types.ObjectId, ref: 'Comunidad', required: true },
     padres: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Padre' }],
     codigoQR: { type: String },
+    codigoCarnet: { type: String, unique: true, sparse: true },
     pin: { type: String },
     activo: { type: Boolean, default: true },
   },
