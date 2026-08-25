@@ -30,6 +30,7 @@ import {
   Switch,
   Autocomplete,
   InputAdornment,
+  Tooltip,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
@@ -38,6 +39,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import QrCode2Icon from '@mui/icons-material/QrCode2';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import { formatearEdad } from '../utils/edad.js';
 
@@ -56,6 +58,12 @@ export default function Ninos() {
   const [guardando, setGuardando] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [busquedaPadre, setBusquedaPadre] = useState('');
+  const [carnetAbierto, setCarnetAbierto] = useState(false);
+  const [carnetData, setCarnetData] = useState(null);
+  const [carnetNinoId, setCarnetNinoId] = useState(null);
+  const [generandoCarnet, setGenerandoCarnet] = useState(false);
+  const [enviandoCarnet, setEnviandoCarnet] = useState(false);
+  const [mensajeCarnet, setMensajeCarnet] = useState('');
   const [form, setForm] = useState({
     nombre: '',
     fechaNacimiento: '',
@@ -208,6 +216,46 @@ export default function Ninos() {
     }
   };
 
+  const abrirCarnet = async (nino) => {
+    setCarnetNinoId(nino._id);
+    setCarnetAbierto(true);
+    setMensajeCarnet('');
+    setGenerandoCarnet(true);
+
+    try {
+      const response = await api.get(`/carnet/generar/${nino._id}`);
+      setCarnetData(response.data);
+    } catch (error) {
+      setError(error.response?.data?.mensaje || 'Error al generar el carnet');
+    } finally {
+      setGenerandoCarnet(false);
+    }
+  };
+
+  const cerrarCarnet = () => {
+    setCarnetAbierto(false);
+    setCarnetData(null);
+    setCarnetNinoId(null);
+    setMensajeCarnet('');
+  };
+
+  const enviarCarnet = async () => {
+    setEnviandoCarnet(true);
+
+    try {
+      const response = await api.post(`/carnet/enviar/${carnetNinoId}`);
+      setMensajeCarnet(response.data.mensaje);
+    } catch (error) {
+      setError(error.response?.data?.mensaje || 'Error al enviar el carnet');
+    } finally {
+      setEnviandoCarnet(false);
+    }
+  };
+
+  const imprimirCarnet = () => {
+    window.print();
+  };
+
   const padresSeleccionados = padresLista.filter((padre) => form.padres.includes(padre._id));
 
   return (
@@ -322,6 +370,15 @@ export default function Ninos() {
                         {puedeGestionar ? (
                           nino.activo ? (
                             <Stack direction="row" spacing={1}>
+                              <Tooltip title="Carnet QR">
+                                <IconButton
+                                  aria-label="carnet qr"
+                                  color="primary"
+                                  onClick={() => abrirCarnet(nino)}
+                                >
+                                  <QrCode2Icon />
+                                </IconButton>
+                              </Tooltip>
                               <IconButton aria-label="editar" onClick={() => abrirEditar(nino)}>
                                 <EditIcon />
                               </IconButton>
@@ -500,6 +557,52 @@ export default function Ninos() {
         onCancelar={() => setConfirmacionAbierta(false)}
         onConfirmar={guardar}
       />
+
+      <Dialog open={carnetAbierto} onClose={cerrarCarnet} fullWidth maxWidth="sm">
+        <DialogTitle>Carnet de Salud{carnetData?.ninoNombre ? ` - ${carnetData.ninoNombre}` : ''}</DialogTitle>
+        <DialogContent>
+          {generandoCarnet && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+              <CircularProgress />
+              <Typography variant="body2" sx={{ mt: 2 }}>
+                Generando carnet...
+              </Typography>
+            </Box>
+          )}
+
+          {!generandoCarnet && carnetData && (
+            <Box sx={{ textAlign: 'center' }}>
+              <img
+                src={carnetData.qrImagen}
+                alt="QR"
+                style={{ width: 220, height: 220, display: 'block', margin: '0 auto' }}
+              />
+              <Typography variant="h6" sx={{ mt: 2 }}>
+                Código: <b>{carnetData.codigoCarnet}</b>
+              </Typography>
+              <Typography variant="h6">
+                PIN: <b>{carnetData.pin}</b>
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                {carnetData.url}
+              </Typography>
+
+              {mensajeCarnet && (
+                <Alert severity="success" sx={{ mt: 2 }}>
+                  {mensajeCarnet}
+                </Alert>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={imprimirCarnet}>Imprimir</Button>
+          <Button variant="contained" onClick={enviarCarnet} disabled={enviandoCarnet}>
+            {enviandoCarnet ? <CircularProgress size={20} /> : 'Enviar por Telegram'}
+          </Button>
+          <Button onClick={cerrarCarnet}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
