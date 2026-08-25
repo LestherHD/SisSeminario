@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -15,8 +15,6 @@ import {
   Button,
   CircularProgress,
   Alert,
-  AppBar,
-  Toolbar,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -28,7 +26,6 @@ import {
   LinearProgress,
   Autocomplete,
 } from '@mui/material';
-import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import VaccinesIcon from '@mui/icons-material/Vaccines';
@@ -40,9 +37,8 @@ function formatoFechaHoy() {
 }
 
 export default function Vacunacion() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { usuario, logout } = useAuth();
+  const { usuario } = useAuth();
   const puedeGestionar =
     usuario?.rol === 'admin' || usuario?.rol === 'encargado' || usuario?.rol === 'personal';
   const [ninos, setNinos] = useState([]);
@@ -221,53 +217,24 @@ export default function Vacunacion() {
 
   return (
     <Box>
-      <AppBar position="static">
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="h6" component="div">
-            SCCVI
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button color="inherit" onClick={() => navigate('/dashboard')}>
-              Dashboard
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/comunidades')}>
-              Comunidades
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/padres')}>
-              Padres
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/ninos')}>
-              Niños
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/vacunas')}>
-              Vacunas
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/crecimiento')}>
-              Crecimiento
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/vacunacion')}>
-              Vacunación
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/alertas')}>
-              Alertas
-            </Button>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body1">{usuario?.nombre}</Typography>
-            <Button color="inherit" onClick={logout} startIcon={<LogoutIcon />}>
-              Salir
-            </Button>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
       <Box sx={{ p: 3 }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 3 }}>
-          <VaccinesIcon fontSize="large" />
-          <Typography variant="h4" component="h1">
-            Control de Vacunación
-          </Typography>
-        </Stack>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3,
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center">
+            <VaccinesIcon fontSize="large" />
+            <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+              Control de Vacunación
+            </Typography>
+          </Stack>
+        </Box>
 
         <Autocomplete
           options={ninos}

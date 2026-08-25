@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
-import { useAuth } from '../context/AuthContext.jsx';
 import {
   Box,
   Typography,
@@ -9,9 +8,6 @@ import {
   Grid,
   CircularProgress,
   Alert,
-  AppBar,
-  Toolbar,
-  Button,
   Card,
   CardContent,
   Chip,
@@ -20,7 +16,6 @@ import {
   ListItemText,
   Divider,
 } from '@mui/material';
-import LogoutIcon from '@mui/icons-material/Logout';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import LocationCityIcon from '@mui/icons-material/LocationCity';
 import VaccinesIcon from '@mui/icons-material/Vaccines';
@@ -44,7 +39,6 @@ const COLORES_MOTIVO = ['#d32f2f', '#ed6c02', '#0288d1', '#2e7d32'];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { usuario, logout } = useAuth();
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -69,50 +63,21 @@ export default function Dashboard() {
 
   return (
     <Box>
-      <AppBar position="static">
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="h6" component="div">
-            SCCVI
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button color="inherit" onClick={() => navigate('/dashboard')}>
-              Dashboard
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/comunidades')}>
-              Comunidades
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/padres')}>
-              Padres
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/ninos')}>
-              Niños
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/vacunas')}>
-              Vacunas
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/crecimiento')}>
-              Crecimiento
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/vacunacion')}>
-              Vacunación
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/alertas')}>
-              Alertas
-            </Button>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body1">{usuario?.nombre}</Typography>
-            <Button color="inherit" onClick={logout} startIcon={<LogoutIcon />}>
-              Salir
-            </Button>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
       <Box sx={{ p: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-          Panel de Control
-        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3,
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+            Panel de Control
+          </Typography>
+        </Box>
 
         {error && (
           <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>

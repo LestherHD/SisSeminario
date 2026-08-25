@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -15,8 +15,6 @@ import {
   Button,
   CircularProgress,
   Alert,
-  AppBar,
-  Toolbar,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,7 +27,6 @@ import {
   Grid,
   Autocomplete,
 } from '@mui/material';
-import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
@@ -70,9 +67,8 @@ function formatoFechaHoy() {
 const KG_A_LIBRAS = 2.20462;
 
 export default function Crecimiento() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { usuario, logout } = useAuth();
+  const { usuario } = useAuth();
   const puedeGestionar =
     usuario?.rol === 'admin' || usuario?.rol === 'encargado' || usuario?.rol === 'personal';
   const [ninos, setNinos] = useState([]);
@@ -213,50 +209,21 @@ export default function Crecimiento() {
 
   return (
     <Box>
-      <AppBar position="static">
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="h6" component="div">
-            SCCVI
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button color="inherit" onClick={() => navigate('/dashboard')}>
-              Dashboard
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/comunidades')}>
-              Comunidades
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/padres')}>
-              Padres
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/ninos')}>
-              Niños
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/vacunas')}>
-              Vacunas
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/crecimiento')}>
-              Crecimiento
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/vacunacion')}>
-              Vacunación
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/alertas')}>
-              Alertas
-            </Button>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body1">{usuario?.nombre}</Typography>
-            <Button color="inherit" onClick={logout} startIcon={<LogoutIcon />}>
-              Salir
-            </Button>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
       <Box sx={{ p: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-          Control de Crecimiento
-        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3,
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+            Control de Crecimiento
+          </Typography>
+        </Box>
 
         <Autocomplete
           options={ninos}

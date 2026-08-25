@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import Layout from './components/Layout.jsx';
 import Login from './pages/Login.jsx';
+import ConsultarCarnet from './pages/ConsultarCarnet.jsx';
+import Inicio from './pages/Inicio.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Comunidades from './pages/Comunidades.jsx';
 import Padres from './pages/Padres.jsx';
@@ -8,7 +11,6 @@ import Vacunas from './pages/Vacunas.jsx';
 import Crecimiento from './pages/Crecimiento.jsx';
 import Vacunacion from './pages/Vacunacion.jsx';
 import Alertas from './pages/Alertas.jsx';
-import ConsultarCarnet from './pages/ConsultarCarnet.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 function App() {
@@ -22,47 +24,26 @@ function App() {
     <Routes>
       <Route
         path="/login"
-        element={usuario ? <Navigate to="/dashboard" /> : <Login />}
+        element={usuario ? <Navigate to="/inicio" /> : <Login />}
       />
       <Route path="/consultar" element={<ConsultarCarnet />} />
       <Route path="/carnet/:codigo" element={<ConsultarCarnet />} />
-      <Route
-        path="/dashboard"
-        element={usuario ? <Dashboard /> : <Navigate to="/login" />}
-      />
-      <Route
-        path="/comunidades"
-        element={
-          usuario ? <Comunidades /> : <Navigate to="/login" />
-        }
-      />
-      <Route
-        path="/padres"
-        element={usuario ? <Padres /> : <Navigate to="/login" />}
-      />
-      <Route
-        path="/ninos"
-        element={usuario ? <Ninos /> : <Navigate to="/login" />}
-      />
-      <Route
-        path="/vacunas"
-        element={usuario ? <Vacunas /> : <Navigate to="/login" />}
-      />
-      <Route
-        path="/crecimiento"
-        element={usuario ? <Crecimiento /> : <Navigate to="/login" />}
-      />
-      <Route
-        path="/vacunacion"
-        element={usuario ? <Vacunacion /> : <Navigate to="/login" />}
-      />
-      <Route
-        path="/alertas"
-        element={usuario ? <Alertas /> : <Navigate to="/login" />}
-      />
+
+      <Route element={usuario ? <Layout /> : <Navigate to="/login" />}>
+        <Route path="/inicio" element={<Inicio />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/comunidades" element={<Comunidades />} />
+        <Route path="/padres" element={<Padres />} />
+        <Route path="/ninos" element={<Ninos />} />
+        <Route path="/vacunas" element={<Vacunas />} />
+        <Route path="/crecimiento" element={<Crecimiento />} />
+        <Route path="/vacunacion" element={<Vacunacion />} />
+        <Route path="/alertas" element={<Alertas />} />
+      </Route>
+
       <Route
         path="/"
-        element={<Navigate to={usuario ? '/dashboard' : '/login'} />}
+        element={<Navigate to={usuario ? '/inicio' : '/login'} />}
       />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

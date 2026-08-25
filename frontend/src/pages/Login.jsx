@@ -27,7 +27,7 @@ export default function Login() {
 
     try {
       await login(email, password);
-      navigate('/comunidades');
+      navigate('/inicio');
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al iniciar sesión');
     } finally {

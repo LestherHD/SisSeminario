@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -15,8 +14,6 @@ import {
   Button,
   CircularProgress,
   Alert,
-  AppBar,
-  Toolbar,
   FormControlLabel,
   Switch,
   Chip,
@@ -28,7 +25,6 @@ import {
   Stack,
   IconButton,
 } from '@mui/material';
-import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -36,8 +32,7 @@ import RestoreIcon from '@mui/icons-material/Restore';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 
 export default function Comunidades() {
-  const navigate = useNavigate();
-  const { usuario, logout } = useAuth();
+  const { usuario } = useAuth();
   const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
   const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -152,54 +147,21 @@ export default function Comunidades() {
 
   return (
     <Box>
-      <AppBar position="static">
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="h6" component="div">
-            SCCVI
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button color="inherit" onClick={() => navigate('/dashboard')}>
-              Dashboard
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/comunidades')}>
-              Comunidades
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/padres')}>
-              Padres
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/ninos')}>
-              Niños
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/vacunas')}>
-              Vacunas
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/crecimiento')}>
-              Crecimiento
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/vacunacion')}>
-              Vacunación
-            </Button>
-            <Button color="inherit" onClick={() => navigate('/alertas')}>
-              Alertas
-            </Button>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body1">
-              {usuario?.nombre}
-            </Typography>
-            <Button color="inherit" onClick={logout} startIcon={<LogoutIcon />}>
-              Salir
-            </Button>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
       <Box sx={{ p: 3 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-          <Typography variant="h4" component="h1">
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3,
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
             Comunidades
           </Typography>
-          <Stack direction="row" alignItems="center" spacing={2}>
+          <Stack direction="row" spacing={2} alignItems="center">
             <FormControlLabel
               control={
                 <Switch
@@ -215,7 +177,7 @@ export default function Comunidades() {
               </Button>
             )}
           </Stack>
-        </Stack>
+        </Box>
 
         {cargando && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
