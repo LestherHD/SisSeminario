@@ -29,6 +29,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import DialogoEliminar from '../components/DialogoEliminar.jsx';
 import { formatearEdad } from '../utils/edad.js';
 
 function formatoFechaHoy() {
@@ -52,6 +53,8 @@ export default function Vacunacion() {
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
+  const [eliminando, setEliminando] = useState(false);
   const [form, setForm] = useState({
     vacuna: '',
     fechaAplicada: formatoFechaHoy(),
@@ -173,18 +176,17 @@ export default function Vacunacion() {
     { label: 'Fecha de aplicación', valor: form.fechaAplicada },
   ];
 
-  const eliminarDosis = async (id) => {
-    const confirmado = window.confirm('¿Eliminar esta dosis?');
-
-    if (!confirmado) {
-      return;
-    }
-
+  const confirmarEliminar = async () => {
+    if (!eliminacion.elemento) return;
+    setEliminando(true);
     try {
-      await api.delete(`/vacunacion/${id}`);
+      await api.delete(`/vacunacion/${eliminacion.elemento._id}`);
       await cargarRegistros(ninoSeleccionado);
+      setEliminacion({ abierto: false, elemento: null });
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al eliminar la dosis');
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -288,11 +290,15 @@ export default function Vacunacion() {
               </Alert>
             )}
 
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              sx={{ mb: 2 }}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 2,
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
             >
               <Typography variant="h6">Esquema de vacunación</Typography>
               {puedeGestionar && (
@@ -300,7 +306,7 @@ export default function Vacunacion() {
                   Registrar Dosis
                 </Button>
               )}
-            </Stack>
+            </Box>
 
             {cargando && (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -389,7 +395,10 @@ export default function Vacunacion() {
                             </TableCell>
                             <TableCell>
                               {puedeGestionar ? (
-                                <IconButton color="error" onClick={() => eliminarDosis(registro._id)}>
+                                <IconButton
+                                  color="error"
+                                  onClick={() => setEliminacion({ abierto: true, elemento: registro })}
+                                >
                                   <DeleteIcon />
                                 </IconButton>
                               ) : (
@@ -458,6 +467,16 @@ export default function Vacunacion() {
         cargando={guardando}
         onCancelar={() => setConfirmacionAbierta(false)}
         onConfirmar={guardar}
+      />
+
+      <DialogoEliminar
+        abierto={eliminacion.abierto}
+        titulo={`¿Eliminar dosis ${eliminacion.elemento?.numeroDosis || ''} de ${
+          eliminacion.elemento?.vacuna?.nombre || 'esta vacuna'
+        }?`}
+        cargando={eliminando}
+        onCancelar={() => setEliminacion({ abierto: false, elemento: null })}
+        onConfirmar={confirmarEliminar}
       />
     </Box>
   );

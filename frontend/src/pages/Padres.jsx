@@ -26,13 +26,18 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
+  Switch,
+  InputAdornment,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import RestoreIcon from '@mui/icons-material/Restore';
+import SearchIcon from '@mui/icons-material/Search';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import DialogoEliminar from '../components/DialogoEliminar.jsx';
 import { departamentos } from '../data/guatemala.js';
 
 export default function Padres() {
@@ -43,10 +48,14 @@ export default function Padres() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [errorFormulario, setErrorFormulario] = useState('');
+  const [mostrarInactivos, setMostrarInactivos] = useState(false);
+  const [busquedaPadre, setBusquedaPadre] = useState('');
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
+  const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
+  const [eliminando, setEliminando] = useState(false);
   const [form, setForm] = useState({
     primerNombre: '',
     segundoNombre: '',
@@ -64,8 +73,12 @@ export default function Padres() {
   });
 
   const cargarPadres = async () => {
+    setCargando(true);
+    setError('');
     try {
-      const response = await api.get('/padres');
+      const response = await api.get(
+        mostrarInactivos ? '/padres?incluirInactivos=true' : '/padres'
+      );
       setPadres(response.data);
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al cargar padres');
@@ -84,9 +97,12 @@ export default function Padres() {
   };
 
   useEffect(() => {
-    cargarPadres();
     cargarComunidades();
   }, []);
+
+  useEffect(() => {
+    cargarPadres();
+  }, [mostrarInactivos]);
 
   const abrirCrear = () => {
     setErrorFormulario('');
@@ -200,18 +216,26 @@ export default function Padres() {
     },
   ];
 
-  const eliminar = async (id) => {
-    const confirmado = window.confirm('¿Eliminar este padre?');
-
-    if (!confirmado) {
-      return;
-    }
-
+  const confirmarEliminar = async () => {
+    if (!eliminacion.elemento) return;
+    setEliminando(true);
     try {
-      await api.delete(`/padres/${id}`);
+      await api.delete(`/padres/${eliminacion.elemento._id}`);
       await cargarPadres();
+      setEliminacion({ abierto: false, elemento: null });
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al eliminar el padre');
+    } finally {
+      setEliminando(false);
+    }
+  };
+
+  const reactivar = async (id) => {
+    try {
+      await api.patch(`/padres/${id}/reactivar`);
+      await cargarPadres();
+    } catch (error) {
+      setError(error.response?.data?.mensaje || 'Error al reactivar el padre');
     }
   };
 
@@ -220,6 +244,9 @@ export default function Padres() {
       comunidad.activo !== false &&
       comunidad.departamento === form.departamentoFiltro &&
       comunidad.municipio === form.municipioFiltro
+  );
+  const padresFiltrados = padres.filter((padre) =>
+    padre.nombreCompleto?.toLowerCase().includes(busquedaPadre.trim().toLowerCase())
   );
 
   return (
@@ -239,6 +266,15 @@ export default function Padres() {
             Padres / Tutores
           </Typography>
           <Stack direction="row" spacing={2} alignItems="center">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={mostrarInactivos}
+                  onChange={(event) => setMostrarInactivos(event.target.checked)}
+                />
+              }
+              label="Mostrar inactivos"
+            />
             {puedeGestionar && (
               <Button variant="contained" startIcon={<AddIcon />} onClick={abrirCrear}>
                 Nuevo Padre
@@ -260,7 +296,21 @@ export default function Padres() {
         )}
 
         {!cargando && !error && (
-          <TableContainer component={Paper}>
+          <Stack spacing={2}>
+            <TextField
+              label="Buscar padre..."
+              value={busquedaPadre}
+              onChange={(event) => setBusquedaPadre(event.target.value)}
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -271,12 +321,13 @@ export default function Padres() {
                   <TableCell>Metodo de Contacto</TableCell>
                   <TableCell>Confirmado</TableCell>
                   <TableCell>Comunidad</TableCell>
+                  <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {padres.length > 0 ? (
-                  padres.map((padre) => (
+                {padresFiltrados.length > 0 ? (
+                  padresFiltrados.map((padre) => (
                     <TableRow key={padre._id}>
                       <TableCell>{padre.nombreCompleto}</TableCell>
                       <TableCell>{padre.dpi}</TableCell>
@@ -302,19 +353,36 @@ export default function Padres() {
                       </TableCell>
                       <TableCell>{padre.comunidad?.nombre}</TableCell>
                       <TableCell>
+                        <Chip
+                          color={padre.activo ? 'success' : 'default'}
+                          label={padre.activo ? 'Activo' : 'Inactivo'}
+                        />
+                      </TableCell>
+                      <TableCell>
                         {puedeGestionar ? (
-                          <Stack direction="row" spacing={1}>
-                            <IconButton aria-label="editar" onClick={() => abrirEditar(padre)}>
-                              <EditIcon />
-                            </IconButton>
+                          padre.activo ? (
+                            <Stack direction="row" spacing={1}>
+                              <IconButton aria-label="editar" onClick={() => abrirEditar(padre)}>
+                                <EditIcon />
+                              </IconButton>
+                              <IconButton
+                                aria-label="eliminar"
+                                color="error"
+                                onClick={() => setEliminacion({ abierto: true, elemento: padre })}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Stack>
+                          ) : (
                             <IconButton
-                              aria-label="eliminar"
-                              color="error"
-                              onClick={() => eliminar(padre._id)}
+                              aria-label="reactivar"
+                              color="primary"
+                              title="Reactivar"
+                              onClick={() => reactivar(padre._id)}
                             >
-                              <DeleteIcon />
+                              <RestoreIcon />
                             </IconButton>
-                          </Stack>
+                          )
                         ) : (
                           '—'
                         )}
@@ -323,14 +391,15 @@ export default function Padres() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
-                      No hay padres registrados
+                    <TableCell colSpan={9} align="center">
+                      {busquedaPadre ? 'No se encontraron padres' : 'No hay padres registrados'}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-          </TableContainer>
+            </TableContainer>
+          </Stack>
         )}
       </Box>
 
@@ -472,6 +541,14 @@ export default function Padres() {
         cargando={guardando}
         onCancelar={() => setConfirmacionAbierta(false)}
         onConfirmar={guardar}
+      />
+
+      <DialogoEliminar
+        abierto={eliminacion.abierto}
+        titulo={`¿Eliminar ${eliminacion.elemento?.nombreCompleto || 'este padre'}?`}
+        cargando={eliminando}
+        onCancelar={() => setEliminacion({ abierto: false, elemento: null })}
+        onConfirmar={confirmarEliminar}
       />
     </Box>
   );

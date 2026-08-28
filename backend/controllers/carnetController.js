@@ -108,7 +108,9 @@ export async function verCarnetPublico(req, res) {
     const { codigo } = req.params;
     const { pin } = req.body;
 
-    const nino = await Nino.findOne({ codigoCarnet: codigo, activo: true }).populate('comunidad', 'nombre');
+    const nino = await Nino.findOne({ codigoCarnet: codigo, activo: true })
+      .populate('comunidad', 'nombre')
+      .populate('padres', 'nombreCompleto');
 
     if (!nino) {
       return res.status(404).json({ mensaje: 'Carnet no encontrado' });
@@ -143,6 +145,7 @@ export async function verCarnetPublico(req, res) {
         fechaNacimiento: nino.fechaNacimiento,
         sexo: nino.sexo,
         comunidad: nino.comunidad?.nombre,
+        padres: (nino.padres || []).map((padre) => padre.nombreCompleto).filter(Boolean),
       },
       vacunas,
       crecimiento,

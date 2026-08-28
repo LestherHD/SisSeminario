@@ -55,7 +55,9 @@ export async function crear(req, res) {
 
 export async function listar(req, res) {
   try {
-    const padres = await Padre.find({ activo: true })
+    const incluirInactivos = req.query.incluirInactivos === 'true';
+    const filtro = incluirInactivos ? {} : { activo: true };
+    const padres = await Padre.find(filtro)
       .populate('comunidad', 'nombre departamento municipio activo')
       .sort({ nombreCompleto: 1 });
 
@@ -129,6 +131,25 @@ export async function eliminar(req, res) {
     }
 
     return res.status(200).json({ mensaje: 'Padre eliminado correctamente' });
+  } catch (error) {
+    return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
+  }
+}
+
+export async function reactivar(req, res) {
+  try {
+    const { id } = req.params;
+    const padre = await Padre.findByIdAndUpdate(
+      id,
+      { activo: true },
+      { new: true }
+    );
+
+    if (!padre) {
+      return res.status(404).json({ mensaje: 'Padre no encontrado' });
+    }
+
+    return res.status(200).json(padre);
   } catch (error) {
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
   }

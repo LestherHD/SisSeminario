@@ -22,12 +22,11 @@ import {
   TextField,
   Stack,
   IconButton,
-  MenuItem,
   Chip,
   Grid,
   Autocomplete,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import { formatearEdad } from '../utils/edad.js';
@@ -68,13 +67,19 @@ function etiquetaPercentil(percentil) {
   return { texto: `${percentil} - Obesidad`, color: 'error' };
 }
 
-function colorPercentilTalla(percentil) {
+function etiquetaPercentilTalla(percentil) {
   if (percentil == null || Number.isNaN(Number(percentil))) {
-    return 'default';
+    return { texto: '—', color: 'default' };
   }
 
   const valor = Number(percentil);
-  return valor >= 5 && valor <= 95 ? 'success' : 'error';
+  if (valor < 5) {
+    return { texto: `${percentil} - Talla baja`, color: 'error' };
+  }
+  if (valor <= 95) {
+    return { texto: `${percentil} - Normal`, color: 'success' };
+  }
+  return { texto: `${percentil} - Talla alta`, color: 'info' };
 }
 
 function formatoFechaHoy() {
@@ -97,6 +102,7 @@ export default function Crecimiento() {
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [editando, setEditando] = useState(null);
   const [form, setForm] = useState({
     peso: '',
     talla: '',
@@ -166,6 +172,20 @@ export default function Crecimiento() {
       fecha: formatoFechaHoy(),
     });
     setPesoLibras('');
+    setEditando(null);
+    setDialogoAbierto(true);
+  };
+
+  const abrirEditar = (medicion) => {
+    setForm({
+      peso: medicion.peso ?? '',
+      talla: medicion.talla ?? '',
+      fecha: medicion.fecha ? String(medicion.fecha).slice(0, 10) : formatoFechaHoy(),
+    });
+    setPesoLibras(
+      medicion.peso == null ? '' : (Number(medicion.peso) * KG_A_LIBRAS).toFixed(1)
+    );
+    setEditando(medicion);
     setDialogoAbierto(true);
   };
 
@@ -183,12 +203,18 @@ export default function Crecimiento() {
     setError('');
 
     try {
-      await api.post('/crecimiento', {
+      const payload = {
         nino: ninoSeleccionado,
         peso: form.peso,
         talla: form.talla,
         fecha: form.fecha,
-      });
+      };
+
+      if (editando) {
+        await api.patch(`/crecimiento/${editando._id}`, payload);
+      } else {
+        await api.post('/crecimiento', payload);
+      }
 
       await cargarMediciones(ninoSeleccionado);
     } catch (error) {
@@ -204,25 +230,17 @@ export default function Crecimiento() {
     {
       label: 'Peso',
       valor: `${form.peso} kg (${(form.peso * KG_A_LIBRAS).toFixed(1)} lb)`,
+      valorAnterior: editando
+        ? `${editando.peso} kg (${(editando.peso * KG_A_LIBRAS).toFixed(1)} lb)`
+        : undefined,
     },
-    { label: 'Talla (cm)', valor: form.talla },
-    { label: 'Fecha', valor: form.fecha },
+    { label: 'Talla (cm)', valor: form.talla, valorAnterior: editando?.talla },
+    {
+      label: 'Fecha',
+      valor: form.fecha,
+      valorAnterior: editando?.fecha ? String(editando.fecha).slice(0, 10) : undefined,
+    },
   ];
-
-  const eliminar = async (id) => {
-    const confirmado = window.confirm('¿Eliminar esta medición?');
-
-    if (!confirmado) {
-      return;
-    }
-
-    try {
-      await api.delete(`/crecimiento/${id}`);
-      await cargarMediciones(ninoSeleccionado);
-    } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al eliminar la medición');
-    }
-  };
 
   return (
     <Box>
@@ -292,11 +310,15 @@ export default function Crecimiento() {
 
         {ninoSeleccionado && (
           <>
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              sx={{ mb: 2 }}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 2,
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
             >
               <Typography variant="h6">Historial de mediciones</Typography>
               {puedeGestionar && (
@@ -304,7 +326,7 @@ export default function Crecimiento() {
                   Nueva Medición
                 </Button>
               )}
-            </Stack>
+            </Box>
 
             {cargando && (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -320,18 +342,25 @@ export default function Crecimiento() {
 
             {!cargando && !error && (
               <>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  useFlexGap
-                  flexWrap="wrap"
-                  sx={{ mb: 2 }}
-                >
-                  <Chip size="small" color="error" label="🔴 Desnutrición (<5)" />
-                  <Chip size="small" color="success" label="🟢 Normal (5-85)" />
-                  <Chip size="small" color="warning" label="🟡 Sobrepeso (85-95)" />
-                  <Chip size="small" color="error" label="🔴 Obesidad (>95)" />
-                </Stack>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}>
+                    Percentil de peso
+                  </Typography>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
+                    <Chip size="small" color="error" label="Desnutrición (<5)" />
+                    <Chip size="small" color="success" label="Normal (5-85)" />
+                    <Chip size="small" color="warning" label="Sobrepeso (85-95)" />
+                    <Chip size="small" color="error" label="Obesidad (>95)" />
+                  </Stack>
+                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}>
+                    Percentil de talla
+                  </Typography>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    <Chip size="small" color="error" label="Talla baja (<5)" />
+                    <Chip size="small" color="success" label="Normal (5-95)" />
+                    <Chip size="small" color="info" label="Talla alta (>95)" />
+                  </Stack>
+                </Box>
                 <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
@@ -349,6 +378,7 @@ export default function Crecimiento() {
                     {mediciones.length > 0 ? (
                       mediciones.map((medicion) => {
                         const percentilPeso = etiquetaPercentil(medicion.percentilPeso);
+                        const percentilTalla = etiquetaPercentilTalla(medicion.percentilTalla);
 
                         return (
                         <TableRow key={medicion._id}>
@@ -372,14 +402,18 @@ export default function Crecimiento() {
                           <TableCell>
                             <Chip
                               size="small"
-                              label={medicion.percentilTalla ?? '—'}
-                              color={colorPercentilTalla(medicion.percentilTalla)}
+                              label={percentilTalla.texto}
+                              color={percentilTalla.color}
                             />
                           </TableCell>
                           <TableCell>
                             {puedeGestionar && (
-                              <IconButton color="error" onClick={() => eliminar(medicion._id)}>
-                                <DeleteIcon />
+                              <IconButton
+                                aria-label="editar medición"
+                                color="primary"
+                                onClick={() => abrirEditar(medicion)}
+                              >
+                                <EditIcon />
                               </IconButton>
                             )}
                           </TableCell>
@@ -461,7 +495,7 @@ export default function Crecimiento() {
       </Box>
 
       <Dialog open={dialogoAbierto} onClose={cerrarDialogo} fullWidth maxWidth="sm">
-        <DialogTitle>Nueva Medición</DialogTitle>
+        <DialogTitle>{editando ? 'Editar Medición' : 'Nueva Medición'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Stack direction="row" spacing={2}>
@@ -520,7 +554,7 @@ export default function Crecimiento() {
 
       <DialogoConfirmacion
         abierto={confirmacionAbierta}
-        modo="crear"
+        modo={editando ? 'editar' : 'crear'}
         titulo="Medición"
         campos={camposConfirmacion}
         cargando={guardando}

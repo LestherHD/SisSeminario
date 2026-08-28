@@ -34,6 +34,7 @@ import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import SearchIcon from '@mui/icons-material/Search';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import DialogoEliminar from '../components/DialogoEliminar.jsx';
 import { departamentos } from '../data/guatemala.js';
 
 export default function Comunidades() {
@@ -51,6 +52,8 @@ export default function Comunidades() {
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [grupoSeleccionado, setGrupoSeleccionado] = useState(null);
+  const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
+  const [eliminando, setEliminando] = useState(false);
 
   const cargarComunidades = async () => {
     setCargando(true);
@@ -144,18 +147,17 @@ export default function Comunidades() {
     { label: 'Nombre de la comunidad/aldea', valor: form.nombre, valorAnterior: editando?.nombre },
   ];
 
-  const eliminar = async (id) => {
-    const confirmado = window.confirm('¿Eliminar esta comunidad?');
-
-    if (!confirmado) {
-      return;
-    }
-
+  const confirmarEliminar = async () => {
+    if (!eliminacion.elemento) return;
+    setEliminando(true);
     try {
-      await api.delete(`/comunidades/${id}`);
+      await api.delete(`/comunidades/${eliminacion.elemento._id}`);
       await cargarComunidades();
+      setEliminacion({ abierto: false, elemento: null });
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al eliminar la comunidad');
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -358,7 +360,7 @@ export default function Comunidades() {
                               <IconButton
                                 aria-label={`Borrar ${comunidad.nombre}`}
                                 color="error"
-                                onClick={() => eliminar(comunidad._id)}
+                                onClick={() => setEliminacion({ abierto: true, elemento: comunidad })}
                               >
                                 <DeleteIcon />
                               </IconButton>
@@ -463,6 +465,14 @@ export default function Comunidades() {
         cargando={guardando}
         onCancelar={() => setConfirmacionAbierta(false)}
         onConfirmar={guardar}
+      />
+
+      <DialogoEliminar
+        abierto={eliminacion.abierto}
+        titulo={`¿Eliminar ${eliminacion.elemento?.nombre || 'esta comunidad'}?`}
+        cargando={eliminando}
+        onCancelar={() => setEliminacion({ abierto: false, elemento: null })}
+        onConfirmar={confirmarEliminar}
       />
     </Box>
   );

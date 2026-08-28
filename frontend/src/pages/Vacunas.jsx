@@ -25,12 +25,15 @@ import {
   Chip,
   FormControlLabel,
   Switch,
+  InputAdornment,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
+import SearchIcon from '@mui/icons-material/Search';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import DialogoEliminar from '../components/DialogoEliminar.jsx';
 
 export default function Vacunas() {
   const { usuario } = useAuth();
@@ -39,10 +42,13 @@ export default function Vacunas() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
+  const [busquedaVacuna, setBusquedaVacuna] = useState('');
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
+  const [eliminando, setEliminando] = useState(false);
   const [form, setForm] = useState({
     nombre: '',
     edadRecomendada: 0,
@@ -151,18 +157,17 @@ export default function Vacunas() {
     { label: 'Descripción', valor: form.descripcion, valorAnterior: editando?.descripcion },
   ];
 
-  const eliminar = async (id) => {
-    const confirmado = window.confirm('¿Eliminar esta vacuna?');
-
-    if (!confirmado) {
-      return;
-    }
-
+  const confirmarEliminar = async () => {
+    if (!eliminacion.elemento) return;
+    setEliminando(true);
     try {
-      await api.delete(`/vacunas/${id}`);
+      await api.delete(`/vacunas/${eliminacion.elemento._id}`);
       await cargarVacunas();
+      setEliminacion({ abierto: false, elemento: null });
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al eliminar la vacuna');
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -174,6 +179,10 @@ export default function Vacunas() {
       setError(error.response?.data?.mensaje || 'Error al reactivar la vacuna');
     }
   };
+
+  const vacunasFiltradas = vacunas.filter((vacuna) =>
+    vacuna.nombre?.toLowerCase().includes(busquedaVacuna.trim().toLowerCase())
+  );
 
   return (
     <Box>
@@ -222,7 +231,21 @@ export default function Vacunas() {
         )}
 
         {!cargando && !error && (
-          <TableContainer component={Paper}>
+          <Stack spacing={2}>
+            <TextField
+              label="Buscar vacuna..."
+              value={busquedaVacuna}
+              onChange={(event) => setBusquedaVacuna(event.target.value)}
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -235,8 +258,8 @@ export default function Vacunas() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {vacunas.length > 0 ? (
-                  vacunas.map((vacuna) => (
+                {vacunasFiltradas.length > 0 ? (
+                  vacunasFiltradas.map((vacuna) => (
                     <TableRow key={vacuna._id}>
                       <TableCell>{vacuna.nombre}</TableCell>
                       <TableCell>{vacuna.edadRecomendada ?? '-'}</TableCell>
@@ -262,7 +285,7 @@ export default function Vacunas() {
                               <IconButton
                                 aria-label="eliminar"
                                 color="error"
-                                onClick={() => eliminar(vacuna._id)}
+                                onClick={() => setEliminacion({ abierto: true, elemento: vacuna })}
                               >
                                 <DeleteIcon />
                               </IconButton>
@@ -286,13 +309,14 @@ export default function Vacunas() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} align="center">
-                      No hay vacunas registradas
+                      {busquedaVacuna ? 'No se encontraron vacunas' : 'No hay vacunas registradas'}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-          </TableContainer>
+            </TableContainer>
+          </Stack>
         )}
       </Box>
 
@@ -365,6 +389,14 @@ export default function Vacunas() {
         cargando={guardando}
         onCancelar={() => setConfirmacionAbierta(false)}
         onConfirmar={guardar}
+      />
+
+      <DialogoEliminar
+        abierto={eliminacion.abierto}
+        titulo={`¿Eliminar ${eliminacion.elemento?.nombre || 'esta vacuna'}?`}
+        cargando={eliminando}
+        onCancelar={() => setEliminacion({ abierto: false, elemento: null })}
+        onConfirmar={confirmarEliminar}
       />
     </Box>
   );

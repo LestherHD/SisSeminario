@@ -37,6 +37,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import DialogoEliminar from '../components/DialogoEliminar.jsx';
 import { formatearEdad } from '../utils/edad.js';
 
 export default function Ninos() {
@@ -53,6 +54,9 @@ export default function Ninos() {
   const [guardando, setGuardando] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [busquedaPadre, setBusquedaPadre] = useState('');
+  const [busquedaNino, setBusquedaNino] = useState('');
+  const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
+  const [eliminando, setEliminando] = useState(false);
   const [carnetAbierto, setCarnetAbierto] = useState(false);
   const [carnetData, setCarnetData] = useState(null);
   const [carnetNinoId, setCarnetNinoId] = useState(null);
@@ -203,18 +207,17 @@ export default function Ninos() {
     },
   ];
 
-  const eliminar = async (id) => {
-    const confirmado = window.confirm('¿Eliminar este niño?');
-
-    if (!confirmado) {
-      return;
-    }
-
+  const confirmarEliminar = async () => {
+    if (!eliminacion.elemento) return;
+    setEliminando(true);
     try {
-      await api.delete(`/ninos/${id}`);
+      await api.delete(`/ninos/${eliminacion.elemento._id}`);
       await cargarNinos();
+      setEliminacion({ abierto: false, elemento: null });
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al eliminar el niño');
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -268,6 +271,9 @@ export default function Ninos() {
   };
 
   const padresSeleccionados = padresLista.filter((padre) => form.padres.includes(padre._id));
+  const ninosFiltrados = ninos.filter((nino) =>
+    nino.nombreCompleto?.toLowerCase().includes(busquedaNino.trim().toLowerCase())
+  );
 
   return (
     <Box>
@@ -316,7 +322,21 @@ export default function Ninos() {
         )}
 
         {!cargando && !error && (
-          <TableContainer component={Paper}>
+          <Stack spacing={2}>
+            <TextField
+              label="Buscar niño..."
+              value={busquedaNino}
+              onChange={(event) => setBusquedaNino(event.target.value)}
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -331,8 +351,8 @@ export default function Ninos() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {ninos.length > 0 ? (
-                  ninos.map((nino) => (
+                {ninosFiltrados.length > 0 ? (
+                  ninosFiltrados.map((nino) => (
                     <TableRow key={nino._id}>
                       <TableCell>{nino.nombreCompleto}</TableCell>
                       <TableCell>{new Date(nino.fechaNacimiento).toLocaleDateString('es-GT')}</TableCell>
@@ -365,7 +385,7 @@ export default function Ninos() {
                               <IconButton
                                 aria-label="eliminar"
                                 color="error"
-                                onClick={() => eliminar(nino._id)}
+                                onClick={() => setEliminacion({ abierto: true, elemento: nino })}
                               >
                                 <DeleteIcon />
                               </IconButton>
@@ -389,13 +409,14 @@ export default function Ninos() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={8} align="center">
-                      No hay niños registrados
+                      {busquedaNino ? 'No se encontraron niños' : 'No hay niños registrados'}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-          </TableContainer>
+            </TableContainer>
+          </Stack>
         )}
       </Box>
 
@@ -550,6 +571,14 @@ export default function Ninos() {
         cargando={guardando}
         onCancelar={() => setConfirmacionAbierta(false)}
         onConfirmar={guardar}
+      />
+
+      <DialogoEliminar
+        abierto={eliminacion.abierto}
+        titulo={`¿Eliminar ${eliminacion.elemento?.nombreCompleto || 'este niño'}?`}
+        cargando={eliminando}
+        onCancelar={() => setEliminacion({ abierto: false, elemento: null })}
+        onConfirmar={confirmarEliminar}
       />
 
       <Dialog open={carnetAbierto} onClose={cerrarCarnet} fullWidth maxWidth="sm">

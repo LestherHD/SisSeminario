@@ -22,6 +22,10 @@ import {
   TextField,
   MenuItem,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -31,6 +35,8 @@ import ErrorIcon from '@mui/icons-material/Error';
 import SearchIcon from '@mui/icons-material/Search';
 import BuildIcon from '@mui/icons-material/Build';
 import SendIcon from '@mui/icons-material/Send';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import DialogoEliminar from '../components/DialogoEliminar.jsx';
 
 const RUTA_POR_MOTIVO = {
   sin_registros: '/crecimiento',
@@ -57,6 +63,9 @@ export default function Alertas() {
   const [mensaje, setMensaje] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('todas');
+  const [informacionAbierta, setInformacionAbierta] = useState(false);
+  const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
+  const [eliminando, setEliminando] = useState(false);
 
   const cargarAlertas = async () => {
     setCargando(true);
@@ -99,18 +108,17 @@ export default function Alertas() {
     }
   };
 
-  const eliminar = async (id) => {
-    const confirmado = window.confirm('¿Eliminar esta alerta?');
-
-    if (!confirmado) {
-      return;
-    }
-
+  const confirmarEliminar = async () => {
+    if (!eliminacion.elemento) return;
+    setEliminando(true);
     try {
-      await api.delete(`/alertas/${id}`);
+      await api.delete(`/alertas/${eliminacion.elemento._id}`);
       await cargarAlertas();
+      setEliminacion({ abierto: false, elemento: null });
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al eliminar la alerta');
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -147,9 +155,20 @@ export default function Alertas() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
-            Alertas de Salud
-          </Typography>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              Alertas de Salud
+            </Typography>
+            <Tooltip title="Información sobre alertas">
+              <IconButton
+                aria-label="Información sobre alertas"
+                color="primary"
+                onClick={() => setInformacionAbierta(true)}
+              >
+                <InfoOutlinedIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
           <Stack direction="row" spacing={2} alignItems="center">
             {puedeGestionar && (
               <Button
@@ -279,7 +298,10 @@ export default function Alertas() {
                               </Tooltip>
                             )}
                             {puedeGestionar && (
-                              <IconButton color="error" onClick={() => eliminar(alerta._id)}>
+                              <IconButton
+                                color="error"
+                                onClick={() => setEliminacion({ abierto: true, elemento: alerta })}
+                              >
                                 <DeleteIcon />
                               </IconButton>
                             )}
@@ -302,6 +324,61 @@ export default function Alertas() {
           </>
         )}
       </Box>
+
+      <Dialog
+        open={informacionAbierta}
+        onClose={() => setInformacionAbierta(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Tipos y motivos de alerta</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Tipos
+              </Typography>
+              <Typography variant="body2">
+                <b>Crítica:</b> requiere atención inmediata, por ejemplo, desnutrición.
+              </Typography>
+              <Typography variant="body2">
+                <b>Preventiva:</b> requiere seguimiento, por ejemplo, sobrepeso, controles o
+                vacunas pendientes.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Motivos
+              </Typography>
+              <Typography variant="body2">
+                <b>Desnutrición:</b> percentil de peso muy bajo (&lt;5).
+              </Typography>
+              <Typography variant="body2">
+                <b>Sobrepeso:</b> percentil de peso alto (&gt;95).
+              </Typography>
+              <Typography variant="body2">
+                <b>Sin controles:</b> más de 3 meses sin medición de crecimiento.
+              </Typography>
+              <Typography variant="body2">
+                <b>Vacuna atrasada:</b> dosis pendiente cuya fecha ya venció.
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInformacionAbierta(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <DialogoEliminar
+        abierto={eliminacion.abierto}
+        titulo={`¿Eliminar alerta de ${
+          eliminacion.elemento?.nino?.nombreCompleto || 'este niño'
+        }?`}
+        cargando={eliminando}
+        onCancelar={() => setEliminacion({ abierto: false, elemento: null })}
+        onConfirmar={confirmarEliminar}
+      />
     </Box>
   );
 }
