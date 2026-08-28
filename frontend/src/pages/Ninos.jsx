@@ -434,8 +434,12 @@ export default function Ninos() {
               <MenuItem value="F">Femenino</MenuItem>
             </TextField>
             <Autocomplete
-              options={comunidades}
-              getOptionLabel={(o) => o.nombre || ''}
+              options={comunidades.filter((comunidad) => comunidad.activo !== false)}
+              getOptionLabel={(comunidad) =>
+                comunidad.nombre
+                  ? `${comunidad.nombre} (${comunidad.municipio || 'Sin municipio'})`
+                  : ''
+              }
               value={comunidades.find((c) => c._id === form.comunidad) || null}
               onChange={(e, nuevo) => setForm({ ...form, comunidad: nuevo ? nuevo._id : '' })}
               isOptionEqualToValue={(o, v) => o._id === v._id}
@@ -506,9 +510,16 @@ export default function Ninos() {
                           <IconButton
                             color="primary"
                             onClick={() => {
+                              const comunidadPadre = typeof padre.comunidad === 'string'
+                                ? padre.comunidad
+                                : padre.comunidad?._id;
                               setForm({
                                 ...form,
                                 padres: [...form.padres, padre._id],
+                                comunidad:
+                                  form.padres.length === 0 && !form.comunidad && comunidadPadre
+                                    ? comunidadPadre
+                                    : form.comunidad,
                               });
                               setBusquedaPadre('');
                             }}

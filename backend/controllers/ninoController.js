@@ -37,7 +37,7 @@ export async function listar(req, res) {
     const incluirInactivos = req.query.incluirInactivos === 'true';
     const filtro = incluirInactivos ? {} : { activo: true };
     const ninos = await Nino.find(filtro)
-      .populate('comunidad', 'nombre')
+      .populate('comunidad', 'nombre departamento municipio activo')
       .populate('padres', 'nombreCompleto')
       .sort({ nombreCompleto: 1 });
 
@@ -51,7 +51,7 @@ export async function obtenerPorId(req, res) {
   try {
     const { id } = req.params;
     const nino = await Nino.findById(id)
-      .populate('comunidad', 'nombre')
+      .populate('comunidad', 'nombre departamento municipio activo')
       .populate('padres', 'nombreCompleto');
 
     if (!nino || nino.activo === false) {

@@ -24,12 +24,14 @@ import {
   TextField,
   Stack,
   IconButton,
+  Autocomplete,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import { departamentos } from '../data/guatemala.js';
 
 export default function Comunidades() {
   const { usuario } = useAuth();
@@ -37,10 +39,11 @@ export default function Comunidades() {
   const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [errorFormulario, setErrorFormulario] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [editando, setEditando] = useState(null);
-  const [form, setForm] = useState({ nombre: '', ubicacion: '', numFamilias: 0 });
+  const [form, setForm] = useState({ nombre: '', departamento: '', municipio: '' });
   const [guardando, setGuardando] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
 
@@ -61,60 +64,66 @@ export default function Comunidades() {
   };
 
   const abrirCrear = () => {
-    setForm({ nombre: '', ubicacion: '', numFamilias: 0 });
+    setErrorFormulario('');
+    setForm({ nombre: '', departamento: '', municipio: '' });
     setEditando(null);
     setDialogoAbierto(true);
   };
 
   const abrirEditar = (comunidad) => {
+    setErrorFormulario('');
     setForm({
       nombre: comunidad.nombre || '',
-      ubicacion: comunidad.ubicacion || '',
-      numFamilias: comunidad.numFamilias ?? 0,
+      departamento: comunidad.departamento || '',
+      municipio: comunidad.municipio || '',
     });
     setEditando(comunidad);
     setDialogoAbierto(true);
   };
 
   const cerrarDialogo = () => {
+    setErrorFormulario('');
     setDialogoAbierto(false);
   };
 
   const pedirConfirmacion = () => {
+    if (!form.nombre.trim()) {
+      setErrorFormulario('El nombre de la comunidad es obligatorio');
+      return;
+    }
+
+    setErrorFormulario('');
     setDialogoAbierto(false);
     setConfirmacionAbierta(true);
   };
 
   const guardar = async () => {
     setGuardando(true);
-    setError('');
+    setErrorFormulario('');
 
     try {
-      const payload = {
-        ...form,
-        numFamilias: Number(form.numFamilias),
-      };
-
       if (editando) {
-        await api.put(`/comunidades/${editando._id}`, payload);
+        await api.put(`/comunidades/${editando._id}`, form);
       } else {
-        await api.post('/comunidades', payload);
+        await api.post('/comunidades', form);
       }
 
       await cargarComunidades();
-    } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al guardar la comunidad');
-    } finally {
-      setGuardando(false);
       setConfirmacionAbierta(false);
       setDialogoAbierto(false);
+    } catch (error) {
+      setErrorFormulario(error.response?.data?.mensaje || 'Error al guardar la comunidad');
+      setConfirmacionAbierta(false);
+      setDialogoAbierto(true);
+    } finally {
+      setGuardando(false);
     }
   };
 
   const camposConfirmacion = [
-    { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
-    { label: 'Ubicación', valor: form.ubicacion, valorAnterior: editando?.ubicacion },
-    { label: 'N° Familias', valor: form.numFamilias, valorAnterior: editando?.numFamilias },
+    { label: 'Departamento', valor: form.departamento, valorAnterior: editando?.departamento },
+    { label: 'Municipio', valor: form.municipio, valorAnterior: editando?.municipio },
+    { label: 'Nombre de la comunidad/aldea', valor: form.nombre, valorAnterior: editando?.nombre },
   ];
 
   const eliminar = async (id) => {
@@ -197,7 +206,8 @@ export default function Comunidades() {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Ubicación</TableCell>
+                  <TableCell>Departamento</TableCell>
+                  <TableCell>Municipio</TableCell>
                   <TableCell>N° Familias</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
@@ -208,8 +218,9 @@ export default function Comunidades() {
                   comunidades.map((comunidad) => (
                     <TableRow key={comunidad._id}>
                       <TableCell>{comunidad.nombre}</TableCell>
-                      <TableCell>{comunidad.ubicacion}</TableCell>
-                      <TableCell>{comunidad.numFamilias}</TableCell>
+                      <TableCell>{comunidad.departamento}</TableCell>
+                      <TableCell>{comunidad.municipio}</TableCell>
+                      <TableCell>{comunidad.numeroFamilias}</TableCell>
                       <TableCell>
                         <Chip
                           color={comunidad.activo ? 'success' : 'default'}
@@ -252,7 +263,7 @@ export default function Comunidades() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">
+                    <TableCell colSpan={6} align="center">
                       No hay comunidades registradas
                     </TableCell>
                   </TableRow>
@@ -267,26 +278,51 @@ export default function Comunidades() {
         <DialogTitle>{editando ? 'Editar Comunidad' : 'Nueva Comunidad'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
+            {errorFormulario && (
+              <Alert severity="error" onClose={() => setErrorFormulario('')}>
+                {errorFormulario}
+              </Alert>
+            )}
+            <Autocomplete
+              options={departamentos.map((item) => item.departamento)}
+              value={form.departamento || null}
+              onChange={(event, departamento) => setForm({
+                ...form,
+                departamento: departamento || '',
+                municipio: '',
+              })}
+              renderInput={(params) => (
+                <TextField {...params} label="Departamento" required />
+              )}
+              fullWidth
+            />
+            <Autocomplete
+              options={
+                departamentos.find((item) => item.departamento === form.departamento)
+                  ?.municipios || []
+              }
+              value={form.municipio || null}
+              onChange={(event, municipio) => setForm({
+                ...form,
+                municipio: municipio || '',
+              })}
+              disabled={!form.departamento}
+              renderInput={(params) => (
+                <TextField {...params} label="Municipio" required />
+              )}
+              fullWidth
+            />
             <TextField
-              label="Nombre"
+              label="Nombre de la comunidad/aldea"
               type="text"
+              required
+              disabled={!form.municipio}
               fullWidth
               value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-            />
-            <TextField
-              label="Ubicación"
-              type="text"
-              fullWidth
-              value={form.ubicacion}
-              onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
-            />
-            <TextField
-              label="N° Familias"
-              type="number"
-              fullWidth
-              value={form.numFamilias}
-              onChange={(e) => setForm({ ...form, numFamilias: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, nombre: e.target.value });
+                setErrorFormulario('');
+              }}
             />
           </Stack>
         </DialogContent>

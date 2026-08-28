@@ -33,6 +33,7 @@ import AddIcon from '@mui/icons-material/Add';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
+import { departamentos } from '../data/guatemala.js';
 
 export default function Padres() {
   const { usuario } = useAuth();
@@ -57,6 +58,8 @@ export default function Padres() {
     email: '',
     metodoContacto: [],
     telegramChatId: '',
+    departamentoFiltro: '',
+    municipioFiltro: '',
     comunidad: null,
   });
 
@@ -98,6 +101,8 @@ export default function Padres() {
       email: '',
       metodoContacto: [],
       telegramChatId: '',
+      departamentoFiltro: '',
+      municipioFiltro: '',
       comunidad: null,
     });
     setEditando(null);
@@ -106,6 +111,12 @@ export default function Padres() {
 
   const abrirEditar = (padre) => {
     setErrorFormulario('');
+    const comunidadId = typeof padre.comunidad === 'string'
+      ? padre.comunidad
+      : padre.comunidad?._id;
+    const comunidadPadre = comunidades.find(
+      (comunidad) => comunidad._id === comunidadId
+    ) || padre.comunidad;
     setForm({
       primerNombre: padre.primerNombre || '',
       segundoNombre: padre.segundoNombre || '',
@@ -117,7 +128,9 @@ export default function Padres() {
       email: padre.email || '',
       metodoContacto: padre.metodoContacto || [],
       telegramChatId: padre.telegramChatId || '',
-      comunidad: padre.comunidad?._id || '',
+      departamentoFiltro: comunidadPadre?.departamento || '',
+      municipioFiltro: comunidadPadre?.municipio || '',
+      comunidad: comunidadId || '',
     });
     setEditando(padre);
     setDialogoAbierto(true);
@@ -201,6 +214,13 @@ export default function Padres() {
       setError(error.response?.data?.mensaje || 'Error al eliminar el padre');
     }
   };
+
+  const comunidadesFiltradas = comunidades.filter(
+    (comunidad) =>
+      comunidad.activo !== false &&
+      comunidad.departamento === form.departamentoFiltro &&
+      comunidad.municipio === form.municipioFiltro
+  );
 
   return (
     <Box>
@@ -388,12 +408,50 @@ export default function Padres() {
               helperText="Número de chat de Telegram del padre (opcional). El padre debe escribir primero al bot."
             />
             <Autocomplete
-              options={comunidades}
-              getOptionLabel={(o) => o.nombre || ''}
-              value={comunidades.find((c) => c._id === form.comunidad) || null}
-              onChange={(e, nuevo) => setForm({ ...form, comunidad: nuevo ? nuevo._id : '' })}
-              isOptionEqualToValue={(o, v) => o._id === v._id}
-              renderInput={(params) => <TextField {...params} label="Comunidad" required />}
+              options={departamentos.map((item) => item.departamento)}
+              value={form.departamentoFiltro || null}
+              onChange={(event, departamentoFiltro) => setForm({
+                ...form,
+                departamentoFiltro: departamentoFiltro || '',
+                municipioFiltro: '',
+                comunidad: '',
+              })}
+              renderInput={(params) => (
+                <TextField {...params} label="Departamento" required />
+              )}
+              fullWidth
+            />
+            <Autocomplete
+              options={
+                departamentos.find(
+                  (item) => item.departamento === form.departamentoFiltro
+                )?.municipios || []
+              }
+              value={form.municipioFiltro || null}
+              onChange={(event, municipioFiltro) => setForm({
+                ...form,
+                municipioFiltro: municipioFiltro || '',
+                comunidad: '',
+              })}
+              disabled={!form.departamentoFiltro}
+              renderInput={(params) => (
+                <TextField {...params} label="Municipio" required />
+              )}
+              fullWidth
+            />
+            <Autocomplete
+              options={comunidadesFiltradas}
+              getOptionLabel={(comunidad) => comunidad.nombre || ''}
+              value={comunidadesFiltradas.find((c) => c._id === form.comunidad) || null}
+              onChange={(event, comunidad) => setForm({
+                ...form,
+                comunidad: comunidad?._id || '',
+              })}
+              isOptionEqualToValue={(option, value) => option._id === value._id}
+              disabled={!form.municipioFiltro}
+              renderInput={(params) => (
+                <TextField {...params} label="Comunidad" required />
+              )}
               fullWidth
             />
           </Stack>

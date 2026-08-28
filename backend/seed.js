@@ -25,8 +25,8 @@ async function run() {
     console.log('✅ Creando comunidad...');
     const comunidad = await Comunidad.create({
       nombre: 'San José Pinula',
-      ubicacion: 'Guatemala',
-      numFamilias: 120,
+      departamento: 'Guatemala',
+      municipio: 'San José Pinula',
     });
     console.log('✅ Comunidad creada:', comunidad._id.toString());
 

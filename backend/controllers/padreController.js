@@ -56,7 +56,7 @@ export async function crear(req, res) {
 export async function listar(req, res) {
   try {
     const padres = await Padre.find({ activo: true })
-      .populate('comunidad', 'nombre')
+      .populate('comunidad', 'nombre departamento municipio activo')
       .sort({ nombreCompleto: 1 });
 
     return res.status(200).json(padres);
@@ -68,7 +68,8 @@ export async function listar(req, res) {
 export async function obtenerPorId(req, res) {
   try {
     const { id } = req.params;
-    const padre = await Padre.findById(id).populate('comunidad', 'nombre');
+    const padre = await Padre.findById(id)
+      .populate('comunidad', 'nombre departamento municipio activo');
 
     if (!padre || padre.activo === false) {
       return res.status(404).json({ mensaje: 'Padre no encontrado' });
