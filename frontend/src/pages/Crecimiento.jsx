@@ -292,7 +292,7 @@ export default function Crecimiento() {
                       <TableCell>Edad (meses)</TableCell>
                       <TableCell>Peso (kg)</TableCell>
                       <TableCell>Talla (cm)</TableCell>
-                      <TableCell>Percentil Peso</TableCell>
+                      <TableCell>Percentil de Peso</TableCell>
                       <TableCell>Percentil Talla</TableCell>
                       <TableCell>Acciones</TableCell>
                     </TableRow>

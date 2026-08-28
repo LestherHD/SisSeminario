@@ -209,7 +209,7 @@ export default function Padres() {
                   <TableCell>DPI</TableCell>
                   <TableCell>Teléfono</TableCell>
                   <TableCell>Email</TableCell>
-                  <TableCell>Canal</TableCell>
+                  <TableCell>Metodo de Contacto</TableCell>
                   <TableCell>Comunidad</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
@@ -296,14 +296,13 @@ export default function Padres() {
             />
             <TextField
               select
-              label="Canal preferido"
+              label="Metodo de contacto"
               fullWidth
               value={form.canalPreferido}
               onChange={(e) => setForm({ ...form, canalPreferido: e.target.value })}
             >
               <MenuItem value="email">Email</MenuItem>
               <MenuItem value="telegram">Telegram</MenuItem>
-              <MenuItem value="whatsapp">WhatsApp</MenuItem>
             </TextField>
             <TextField
               label="Telegram Chat ID"

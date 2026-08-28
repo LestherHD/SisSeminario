@@ -87,19 +87,6 @@ export default function Login() {
             {cargando ? <CircularProgress size={24} color="inherit" /> : 'Ingresar'}
           </Button>
         </Box>
-
-        <Divider sx={{ my: 3 }} />
-
-        <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 1 }}>
-          ¿Eres padre o tutor?
-        </Typography>
-        <Button
-          variant="outlined"
-          fullWidth
-          onClick={() => navigate('/consultar')}
-        >
-          Consultar carnet de mi hijo/a
-        </Button>
       </Paper>
     </Box>
   );

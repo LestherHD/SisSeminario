@@ -395,13 +395,14 @@ export default function Ninos() {
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             />
             <TextField
-              label="Fecha de nacimiento"
+              label="Fecha de nac."
               type="date"
               required
               fullWidth
               value={form.fechaNacimiento}
               onChange={(e) => setForm({ ...form, fechaNacimiento: e.target.value })}
               InputLabelProps={{ shrink: true }}
+              sx={{ '& input::-webkit-datetime-edit': { color: form.fechaNacimiento ? 'inherit' : 'transparent' } }}
             />
             <TextField
               select
