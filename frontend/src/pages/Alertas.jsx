@@ -129,7 +129,7 @@ export default function Alertas() {
   };
 
   const alertasFiltradas = alertas.filter((a) => {
-    const coincideNombre = a.nino?.nombre?.toLowerCase().includes(busqueda.toLowerCase());
+    const coincideNombre = a.nino?.nombreCompleto?.toLowerCase().includes(busqueda.toLowerCase());
     const coincideTipo = filtroTipo === 'todas' || a.tipo === filtroTipo;
     return coincideNombre && coincideTipo;
   });
@@ -243,7 +243,7 @@ export default function Alertas() {
                             />
                           )}
                         </TableCell>
-                        <TableCell>{alerta.nino?.nombre || '-'}</TableCell>
+                        <TableCell>{alerta.nino?.nombreCompleto || '-'}</TableCell>
                         <TableCell>
                           <Chip
                             size="small"

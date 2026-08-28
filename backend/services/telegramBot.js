@@ -32,7 +32,7 @@ async function consultarUpdates() {
             esperandoDPI.delete(chatId);
             await enviarMensajeTelegram(
               chatId,
-              `¡Vinculación exitosa! ✅\n\nHola ${padre.nombre}, ahora recibirás notificaciones sobre la salud de tus hijos en el centro SCCVI.`
+              `¡Vinculación exitosa! ✅\n\nHola ${padre.nombreCompleto}, ahora recibirás notificaciones sobre la salud de tus hijos en el centro SCCVI.`
             );
           } else {
             await enviarMensajeTelegram(

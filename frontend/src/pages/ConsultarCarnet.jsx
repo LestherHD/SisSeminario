@@ -135,7 +135,7 @@ export default function ConsultarCarnet() {
         {carnet && (
           <Box>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              {carnet.nino?.nombre}
+              {carnet.nino?.nombreCompleto}
             </Typography>
 
             <Stack spacing={0.5} sx={{ mb: 3 }}>

@@ -56,11 +56,11 @@ export async function obtenerEstadisticas(req, res) {
       atendida: false,
       tipo: 'critica',
     })
-      .populate('nino', 'nombre')
+      .populate('nino', 'nombreCompleto')
       .limit(10);
 
     const ninosConAlertasCriticas = alertasCriticasDetalle.map((alerta) => ({
-      ninoNombre: alerta.nino?.nombre || '-',
+      ninoNombre: alerta.nino?.nombreCompleto || '-',
       mensaje: alerta.mensaje,
       fecha: alerta.fecha,
     }));

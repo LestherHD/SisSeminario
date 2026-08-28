@@ -44,7 +44,7 @@ export async function generarCarnet(req, res) {
       codigoCarnet: nino.codigoCarnet,
       pin: nino.pin,
       url: urlCarnet,
-      ninoNombre: nino.nombre,
+      ninoNombre: nino.nombreCompleto,
     });
   } catch (error) {
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
@@ -73,7 +73,9 @@ export async function enviarCarnetTelegram(req, res) {
     nino.codigoQR = urlCarnet;
     await nino.save();
 
-    const padresConTelegram = (nino.padres || []).filter((padre) => padre.telegramChatId);
+    const padresConTelegram = (nino.padres || []).filter(
+      (padre) => padre.metodoContacto?.includes('telegram') && padre.telegramChatId
+    );
 
     if (padresConTelegram.length === 0) {
       return res.status(200).json({ mensaje: 'Ningún padre tiene Telegram configurado', enviados: 0 });
@@ -82,7 +84,7 @@ export async function enviarCarnetTelegram(req, res) {
     let enviados = 0;
 
     for (const padre of padresConTelegram) {
-      const mensaje = `🏥 <b>SCCVI - Carnet de Salud de ${nino.nombre}</b>\n\nAcceso al carnet de salud:\n\n🔗 Link: ${urlCarnet}\n🔑 Código: ${nino.codigoCarnet}\n📌 PIN: ${nino.pin}\n\nGuarda este mensaje. Puedes usar el link o ingresar el código y PIN en la página.`;
+      const mensaje = `🏥 <b>SCCVI - Carnet de Salud de ${nino.nombreCompleto}</b>\n\nAcceso al carnet de salud:\n\n🔗 Link: ${urlCarnet}\n🔑 Código: ${nino.codigoCarnet}\n📌 PIN: ${nino.pin}\n\nGuarda este mensaje. Puedes usar el link o ingresar el código y PIN en la página.`;
 
       await enviarMensajeTelegram(padre.telegramChatId, mensaje);
       const resultado = await enviarFotoTelegram(padre.telegramChatId, qrDataUrl, 'Código QR del carnet');
@@ -137,7 +139,7 @@ export async function verCarnetPublico(req, res) {
 
     return res.status(200).json({
       nino: {
-        nombre: nino.nombre,
+        nombreCompleto: nino.nombreCompleto,
         fechaNacimiento: nino.fechaNacimiento,
         sexo: nino.sexo,
         comunidad: nino.comunidad?.nombre,

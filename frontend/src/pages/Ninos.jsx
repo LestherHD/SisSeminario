@@ -60,7 +60,11 @@ export default function Ninos() {
   const [enviandoCarnet, setEnviandoCarnet] = useState(false);
   const [mensajeCarnet, setMensajeCarnet] = useState('');
   const [form, setForm] = useState({
-    nombre: '',
+    primerNombre: '',
+    segundoNombre: '',
+    tercerNombre: '',
+    primerApellido: '',
+    segundoApellido: '',
     fechaNacimiento: '',
     sexo: '',
     comunidad: '',
@@ -112,7 +116,11 @@ export default function Ninos() {
 
   const abrirCrear = () => {
     setForm({
-      nombre: '',
+      primerNombre: '',
+      segundoNombre: '',
+      tercerNombre: '',
+      primerApellido: '',
+      segundoApellido: '',
       fechaNacimiento: '',
       sexo: '',
       comunidad: '',
@@ -124,7 +132,11 @@ export default function Ninos() {
 
   const abrirEditar = (nino) => {
     setForm({
-      nombre: nino.nombre || '',
+      primerNombre: nino.primerNombre || '',
+      segundoNombre: nino.segundoNombre || '',
+      tercerNombre: nino.tercerNombre || '',
+      primerApellido: nino.primerApellido || '',
+      segundoApellido: nino.segundoApellido || '',
       fechaNacimiento: nino.fechaNacimiento ? nino.fechaNacimiento.slice(0, 10) : '',
       sexo: nino.sexo || '',
       comunidad: nino.comunidad?._id || '',
@@ -165,7 +177,11 @@ export default function Ninos() {
   };
 
   const camposConfirmacion = [
-    { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
+    { label: 'Primer nombre', valor: form.primerNombre, valorAnterior: editando?.primerNombre },
+    { label: 'Segundo nombre', valor: form.segundoNombre, valorAnterior: editando?.segundoNombre },
+    { label: 'Tercer nombre', valor: form.tercerNombre, valorAnterior: editando?.tercerNombre },
+    { label: 'Primer apellido', valor: form.primerApellido, valorAnterior: editando?.primerApellido },
+    { label: 'Segundo apellido', valor: form.segundoApellido, valorAnterior: editando?.segundoApellido },
     {
       label: 'Fecha de nacimiento',
       valor: form.fechaNacimiento,
@@ -181,9 +197,9 @@ export default function Ninos() {
       label: 'Padres',
       valor: padresLista
         .filter((p) => form.padres.includes(p._id))
-        .map((p) => p.nombre)
+        .map((p) => p.nombreCompleto)
         .join(', '),
-      valorAnterior: editando?.padres ? editando.padres.map((p) => p.nombre).join(', ') : undefined,
+      valorAnterior: editando?.padres ? editando.padres.map((p) => p.nombreCompleto).join(', ') : undefined,
     },
   ];
 
@@ -318,12 +334,12 @@ export default function Ninos() {
                 {ninos.length > 0 ? (
                   ninos.map((nino) => (
                     <TableRow key={nino._id}>
-                      <TableCell>{nino.nombre}</TableCell>
+                      <TableCell>{nino.nombreCompleto}</TableCell>
                       <TableCell>{new Date(nino.fechaNacimiento).toLocaleDateString('es-GT')}</TableCell>
                       <TableCell>{formatearEdad(nino.fechaNacimiento)}</TableCell>
                       <TableCell>{nino.sexo}</TableCell>
                       <TableCell>{nino.comunidad?.nombre}</TableCell>
-                      <TableCell>{nino.padres?.map((padre) => padre.nombre).join(', ')}</TableCell>
+                      <TableCell>{nino.padres?.map((padre) => padre.nombreCompleto).join(', ')}</TableCell>
                       <TableCell>
                         <Chip
                           color={nino.activo ? 'success' : 'default'}
@@ -387,13 +403,15 @@ export default function Ninos() {
         <DialogTitle>{editando ? 'Editar Niño' : 'Nuevo Niño'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Nombre"
-              required
-              fullWidth
-              value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField label="Primer nombre" required fullWidth value={form.primerNombre} onChange={(e) => setForm({ ...form, primerNombre: e.target.value })} />
+              <TextField label="Segundo nombre" fullWidth value={form.segundoNombre} onChange={(e) => setForm({ ...form, segundoNombre: e.target.value })} />
+              <TextField label="Tercer nombre" fullWidth value={form.tercerNombre} onChange={(e) => setForm({ ...form, tercerNombre: e.target.value })} />
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField label="Primer apellido" required fullWidth value={form.primerApellido} onChange={(e) => setForm({ ...form, primerApellido: e.target.value })} />
+              <TextField label="Segundo apellido" required fullWidth value={form.segundoApellido} onChange={(e) => setForm({ ...form, segundoApellido: e.target.value })} />
+            </Stack>
             <TextField
               label="Fecha de nac."
               type="date"
@@ -450,7 +468,7 @@ export default function Ninos() {
                     {padresSeleccionados.map((padre) => (
                       <Chip
                         key={padre._id}
-                        label={padre.nombre}
+                        label={padre.nombreCompleto}
                         onDelete={() =>
                           setForm({
                             ...form,
@@ -472,7 +490,7 @@ export default function Ninos() {
                   {padresLista
                     .filter(
                       (padre) =>
-                        padre.nombre.toLowerCase().includes(busquedaPadre.toLowerCase()) &&
+                        padre.nombreCompleto.toLowerCase().includes(busquedaPadre.toLowerCase()) &&
                         !form.padres.includes(padre._id)
                     )
                     .slice(0, 8)
@@ -484,7 +502,7 @@ export default function Ninos() {
                           justifyContent="space-between"
                           spacing={2}
                         >
-                          <Typography variant="body2">{padre.nombre}</Typography>
+                          <Typography variant="body2">{padre.nombreCompleto}</Typography>
                           <IconButton
                             color="primary"
                             onClick={() => {

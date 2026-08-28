@@ -29,7 +29,7 @@ async function notificarAlertaCritica(alerta) {
     const padres = nino?.padres || [];
 
     for (const padre of padres) {
-      if (!padre.telegramChatId) {
+      if (!padre.metodoContacto?.includes('telegram') || !padre.telegramChatId) {
         continue;
       }
 
@@ -43,7 +43,7 @@ async function notificarAlertaCritica(alerta) {
         continue;
       }
 
-      const mensaje = `🚨 <b>SCCVI - Alerta Crítica</b>\n\nEstimado/a ${padre.nombre},\n\n${alerta.mensaje}\n\n<b>Por favor acuda al centro de salud lo antes posible.</b>`;
+      const mensaje = `🚨 <b>SCCVI - Alerta Crítica</b>\n\nEstimado/a ${padre.nombreCompleto},\n\n${alerta.mensaje}\n\n<b>Por favor acuda al centro de salud lo antes posible.</b>`;
       const resultado = await enviarMensajeTelegram(padre.telegramChatId, mensaje);
 
       await Notificacion.create({
@@ -90,25 +90,25 @@ export async function analizarNino(ninoId) {
       activa: Boolean(ultimoRegistro && ultimoRegistro.percentilPeso < 5),
       tipo: 'critica',
       mensaje: ultimoRegistro
-        ? `El niño ${nino.nombre} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible desnutrición). Se recomienda evaluación.`
+        ? `El niño ${nino.nombreCompleto} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible desnutrición). Se recomienda evaluación.`
         : '',
     },
     sobrepeso: {
       activa: Boolean(ultimoRegistro && ultimoRegistro.percentilPeso > 95),
       tipo: 'preventiva',
       mensaje: ultimoRegistro
-        ? `El niño ${nino.nombre} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible sobrepeso).`
+        ? `El niño ${nino.nombreCompleto} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible sobrepeso).`
         : '',
     },
     sin_registros: {
       activa: !registroReciente,
       tipo: 'preventiva',
-      mensaje: `El niño ${nino.nombre} no tiene controles de crecimiento recientes (más de 3 meses).`,
+      mensaje: `El niño ${nino.nombreCompleto} no tiene controles de crecimiento recientes (más de 3 meses).`,
     },
     vacuna_atrasada: {
       activa: Boolean(dosisAtrasada),
       tipo: 'preventiva',
-      mensaje: `El niño ${nino.nombre} tiene una o más dosis de vacuna atrasadas.`,
+      mensaje: `El niño ${nino.nombreCompleto} tiene una o más dosis de vacuna atrasadas.`,
     },
   };
 

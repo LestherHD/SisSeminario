@@ -21,13 +21,17 @@ import {
   TextField,
   Stack,
   IconButton,
-  MenuItem,
   Autocomplete,
   Chip,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 
 export default function Padres() {
@@ -37,18 +41,23 @@ export default function Padres() {
   const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [errorFormulario, setErrorFormulario] = useState('');
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [form, setForm] = useState({
-    nombre: '',
+    primerNombre: '',
+    segundoNombre: '',
+    tercerNombre: '',
+    primerApellido: '',
+    segundoApellido: '',
     dpi: '',
     telefono: '',
     email: '',
-    canalPreferido: 'email',
+    metodoContacto: [],
     telegramChatId: '',
-    comunidad: '',
+    comunidad: null,
   });
 
   const cargarPadres = async () => {
@@ -77,26 +86,36 @@ export default function Padres() {
   }, []);
 
   const abrirCrear = () => {
+    setErrorFormulario('');
     setForm({
-      nombre: '',
+      primerNombre: '',
+      segundoNombre: '',
+      tercerNombre: '',
+      primerApellido: '',
+      segundoApellido: '',
       dpi: '',
       telefono: '',
       email: '',
-      canalPreferido: 'email',
+      metodoContacto: [],
       telegramChatId: '',
-      comunidad: '',
+      comunidad: null,
     });
     setEditando(null);
     setDialogoAbierto(true);
   };
 
   const abrirEditar = (padre) => {
+    setErrorFormulario('');
     setForm({
-      nombre: padre.nombre || '',
+      primerNombre: padre.primerNombre || '',
+      segundoNombre: padre.segundoNombre || '',
+      tercerNombre: padre.tercerNombre || '',
+      primerApellido: padre.primerApellido || '',
+      segundoApellido: padre.segundoApellido || '',
       dpi: padre.dpi || '',
       telefono: padre.telefono || '',
       email: padre.email || '',
-      canalPreferido: padre.canalPreferido || 'email',
+      metodoContacto: padre.metodoContacto || [],
       telegramChatId: padre.telegramChatId || '',
       comunidad: padre.comunidad?._id || '',
     });
@@ -105,17 +124,27 @@ export default function Padres() {
   };
 
   const cerrarDialogo = () => {
+    setErrorFormulario('');
     setDialogoAbierto(false);
   };
 
   const pedirConfirmacion = () => {
+    if (form.metodoContacto.length === 0) {
+      setErrorFormulario('Debe seleccionar al menos un método de contacto (Telegram o Email)');
+      return;
+    }
+    if (form.metodoContacto.includes('email') && !form.email.trim()) {
+      setErrorFormulario('El email es obligatorio si selecciona Email como método de contacto');
+      return;
+    }
+    setErrorFormulario('');
     setDialogoAbierto(false);
     setConfirmacionAbierta(true);
   };
 
   const guardar = async () => {
     setGuardando(true);
-    setError('');
+    setErrorFormulario('');
 
     try {
       if (editando) {
@@ -125,21 +154,31 @@ export default function Padres() {
       }
 
       await cargarPadres();
-    } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al guardar el padre');
-    } finally {
-      setGuardando(false);
       setConfirmacionAbierta(false);
       setDialogoAbierto(false);
+    } catch (error) {
+      setErrorFormulario(error.response?.data?.mensaje || 'Error al guardar el padre');
+      setConfirmacionAbierta(false);
+      setDialogoAbierto(true);
+    } finally {
+      setGuardando(false);
     }
   };
 
   const camposConfirmacion = [
-    { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
+    { label: 'Primer nombre', valor: form.primerNombre, valorAnterior: editando?.primerNombre },
+    { label: 'Segundo nombre', valor: form.segundoNombre, valorAnterior: editando?.segundoNombre },
+    { label: 'Tercer nombre', valor: form.tercerNombre, valorAnterior: editando?.tercerNombre },
+    { label: 'Primer apellido', valor: form.primerApellido, valorAnterior: editando?.primerApellido },
+    { label: 'Segundo apellido', valor: form.segundoApellido, valorAnterior: editando?.segundoApellido },
     { label: 'DPI', valor: form.dpi, valorAnterior: editando?.dpi },
     { label: 'Teléfono', valor: form.telefono, valorAnterior: editando?.telefono },
     { label: 'Email', valor: form.email, valorAnterior: editando?.email },
-    { label: 'Canal preferido', valor: form.canalPreferido, valorAnterior: editando?.canalPreferido },
+    {
+      label: 'Método de contacto',
+      valor: form.metodoContacto.map((metodo) => metodo === 'telegram' ? 'Telegram' : 'Email').join(', '),
+      valorAnterior: editando?.metodoContacto?.map((metodo) => metodo === 'telegram' ? 'Telegram' : 'Email').join(', '),
+    },
     { label: 'Telegram Chat ID', valor: form.telegramChatId, valorAnterior: editando?.telegramChatId },
     {
       label: 'Comunidad',
@@ -210,6 +249,7 @@ export default function Padres() {
                   <TableCell>Teléfono</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Metodo de Contacto</TableCell>
+                  <TableCell>Confirmado</TableCell>
                   <TableCell>Comunidad</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
@@ -218,17 +258,27 @@ export default function Padres() {
                 {padres.length > 0 ? (
                   padres.map((padre) => (
                     <TableRow key={padre._id}>
-                      <TableCell>{padre.nombre}</TableCell>
+                      <TableCell>{padre.nombreCompleto}</TableCell>
                       <TableCell>{padre.dpi}</TableCell>
                       <TableCell>{padre.telefono}</TableCell>
                       <TableCell>{padre.email}</TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <span>{padre.canalPreferido}</span>
-                          {padre.telegramChatId && (
-                            <Chip label="TG" color="info" size="small" />
-                          )}
+                        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                          {padre.metodoContacto?.map((metodo) => (
+                            <Chip
+                              key={metodo}
+                              label={metodo === 'telegram' ? 'Telegram' : 'Email'}
+                              size="small"
+                            />
+                          ))}
                         </Stack>
+                      </TableCell>
+                      <TableCell>
+                        {padre.metodoContacto?.includes('telegram')
+                          ? padre.telegramChatId?.trim()
+                            ? <CheckCircleIcon color="success" aria-label="Telegram confirmado" />
+                            : <CancelIcon color="error" aria-label="Telegram no confirmado" />
+                          : '—'}
                       </TableCell>
                       <TableCell>{padre.comunidad?.nombre}</TableCell>
                       <TableCell>
@@ -253,7 +303,7 @@ export default function Padres() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={8} align="center">
                       No hay padres registrados
                     </TableCell>
                   </TableRow>
@@ -268,13 +318,20 @@ export default function Padres() {
         <DialogTitle>{editando ? 'Editar Padre' : 'Nuevo Padre'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Nombre"
-              required
-              fullWidth
-              value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-            />
+            {errorFormulario && (
+              <Alert severity="error" onClose={() => setErrorFormulario('')}>
+                {errorFormulario}
+              </Alert>
+            )}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField label="Primer nombre" required fullWidth value={form.primerNombre} onChange={(e) => setForm({ ...form, primerNombre: e.target.value })} />
+              <TextField label="Segundo nombre" fullWidth value={form.segundoNombre} onChange={(e) => setForm({ ...form, segundoNombre: e.target.value })} />
+              <TextField label="Tercer nombre" fullWidth value={form.tercerNombre} onChange={(e) => setForm({ ...form, tercerNombre: e.target.value })} />
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField label="Primer apellido" required fullWidth value={form.primerApellido} onChange={(e) => setForm({ ...form, primerApellido: e.target.value })} />
+              <TextField label="Segundo apellido" required fullWidth value={form.segundoApellido} onChange={(e) => setForm({ ...form, segundoApellido: e.target.value })} />
+            </Stack>
             <TextField
               label="DPI"
               fullWidth
@@ -290,20 +347,39 @@ export default function Padres() {
             <TextField
               label="Email"
               type="email"
+              required={form.metodoContacto.includes('email')}
               fullWidth
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, email: e.target.value });
+                setErrorFormulario('');
+              }}
             />
-            <TextField
-              select
-              label="Metodo de contacto"
-              fullWidth
-              value={form.canalPreferido}
-              onChange={(e) => setForm({ ...form, canalPreferido: e.target.value })}
-            >
-              <MenuItem value="email">Email</MenuItem>
-              <MenuItem value="telegram">Telegram</MenuItem>
-            </TextField>
+            <Box>
+              <Typography variant="subtitle2">Método de contacto *</Typography>
+              <FormGroup row>
+                {['telegram', 'email'].map((metodo) => (
+                  <FormControlLabel
+                    key={metodo}
+                    label={metodo === 'telegram' ? 'Telegram' : 'Email'}
+                    control={
+                      <Checkbox
+                        checked={form.metodoContacto.includes(metodo)}
+                        onChange={(e) => {
+                          setForm({
+                            ...form,
+                            metodoContacto: e.target.checked
+                              ? [...form.metodoContacto, metodo]
+                              : form.metodoContacto.filter((item) => item !== metodo),
+                          });
+                          setErrorFormulario('');
+                        }}
+                      />
+                    }
+                  />
+                ))}
+              </FormGroup>
+            </Box>
             <TextField
               label="Telegram Chat ID"
               fullWidth

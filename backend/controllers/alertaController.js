@@ -10,7 +10,7 @@ export async function listar(req, res) {
       filtro.atendida = false;
     }
 
-    const alertas = await Alerta.find(filtro).populate('nino', 'nombre').sort({ fecha: -1 });
+    const alertas = await Alerta.find(filtro).populate('nino', 'nombreCompleto').sort({ fecha: -1 });
 
     return res.status(200).json(alertas);
   } catch (error) {

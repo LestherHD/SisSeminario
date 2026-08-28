@@ -2,10 +2,24 @@ import Nino from '../models/Nino.js';
 
 export async function crear(req, res) {
   try {
-    const { nombre, fechaNacimiento, sexo, comunidad, padres } = req.body;
+    const {
+      primerNombre,
+      segundoNombre,
+      tercerNombre,
+      primerApellido,
+      segundoApellido,
+      fechaNacimiento,
+      sexo,
+      comunidad,
+      padres,
+    } = req.body;
 
     const nino = await Nino.create({
-      nombre,
+      primerNombre,
+      segundoNombre,
+      tercerNombre,
+      primerApellido,
+      segundoApellido,
       fechaNacimiento,
       sexo,
       comunidad,
@@ -24,8 +38,8 @@ export async function listar(req, res) {
     const filtro = incluirInactivos ? {} : { activo: true };
     const ninos = await Nino.find(filtro)
       .populate('comunidad', 'nombre')
-      .populate('padres', 'nombre')
-      .sort({ nombre: 1 });
+      .populate('padres', 'nombreCompleto')
+      .sort({ nombreCompleto: 1 });
 
     return res.status(200).json(ninos);
   } catch (error) {
@@ -38,7 +52,7 @@ export async function obtenerPorId(req, res) {
     const { id } = req.params;
     const nino = await Nino.findById(id)
       .populate('comunidad', 'nombre')
-      .populate('padres', 'nombre');
+      .populate('padres', 'nombreCompleto');
 
     if (!nino || nino.activo === false) {
       return res.status(404).json({ mensaje: 'Niño no encontrado' });
@@ -53,14 +67,22 @@ export async function obtenerPorId(req, res) {
 export async function actualizar(req, res) {
   try {
     const { id } = req.params;
-    const nino = await Nino.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const nino = await Nino.findById(id);
 
     if (!nino) {
       return res.status(404).json({ mensaje: 'Niño no encontrado' });
     }
+
+    const camposPermitidos = [
+      'primerNombre', 'segundoNombre', 'tercerNombre', 'primerApellido',
+      'segundoApellido', 'fechaNacimiento', 'sexo', 'comunidad', 'padres',
+    ];
+    camposPermitidos.forEach((campo) => {
+      if (Object.prototype.hasOwnProperty.call(req.body, campo)) {
+        nino[campo] = req.body[campo];
+      }
+    });
+    await nino.save();
 
     return res.status(200).json(nino);
   } catch (error) {

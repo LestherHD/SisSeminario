@@ -227,7 +227,7 @@ export default function Crecimiento() {
 
         <Autocomplete
           options={ninos}
-          getOptionLabel={(option) => option.nombre || ''}
+          getOptionLabel={(option) => option.nombreCompleto || ''}
           value={ninoObj}
           onChange={(event, nuevoValor) => {
             setNinoObj(nuevoValor);

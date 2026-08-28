@@ -1,15 +1,49 @@
 import Padre from '../models/Padre.js';
 
+function validarMetodoContacto(metodoContacto, email) {
+  if (!Array.isArray(metodoContacto) || metodoContacto.length === 0) {
+    return 'Debe seleccionar al menos un método de contacto (Telegram o Email)';
+  }
+
+  if (metodoContacto.includes('email') && !email?.trim()) {
+    return 'El email es obligatorio si selecciona Email como método de contacto';
+  }
+
+  return null;
+}
+
 export async function crear(req, res) {
   try {
-    const { nombre, dpi, telefono, email, canalPreferido, comunidad } = req.body;
-
-    const padre = await Padre.create({
-      nombre,
+    const {
+      primerNombre,
+      segundoNombre,
+      tercerNombre,
+      primerApellido,
+      segundoApellido,
       dpi,
       telefono,
       email,
-      canalPreferido,
+      metodoContacto,
+      telegramChatId,
+      comunidad,
+    } = req.body;
+
+    const errorValidacion = validarMetodoContacto(metodoContacto, email);
+    if (errorValidacion) {
+      return res.status(400).json({ mensaje: errorValidacion });
+    }
+
+    const padre = await Padre.create({
+      primerNombre,
+      segundoNombre,
+      tercerNombre,
+      primerApellido,
+      segundoApellido,
+      dpi,
+      telefono,
+      email,
+      metodoContacto,
+      telegramChatId,
       comunidad,
     });
 
@@ -23,7 +57,7 @@ export async function listar(req, res) {
   try {
     const padres = await Padre.find({ activo: true })
       .populate('comunidad', 'nombre')
-      .sort({ nombre: 1 });
+      .sort({ nombreCompleto: 1 });
 
     return res.status(200).json(padres);
   } catch (error) {
@@ -49,14 +83,30 @@ export async function obtenerPorId(req, res) {
 export async function actualizar(req, res) {
   try {
     const { id } = req.params;
-    const padre = await Padre.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const padre = await Padre.findById(id);
 
     if (!padre) {
       return res.status(404).json({ mensaje: 'Padre no encontrado' });
     }
+
+    const metodoContacto = req.body.metodoContacto ?? padre.metodoContacto;
+    const email = req.body.email ?? padre.email;
+    const errorValidacion = validarMetodoContacto(metodoContacto, email);
+    if (errorValidacion) {
+      return res.status(400).json({ mensaje: errorValidacion });
+    }
+
+    const camposPermitidos = [
+      'primerNombre', 'segundoNombre', 'tercerNombre', 'primerApellido',
+      'segundoApellido', 'dpi', 'telefono', 'email', 'metodoContacto',
+      'telegramChatId', 'comunidad',
+    ];
+    camposPermitidos.forEach((campo) => {
+      if (Object.prototype.hasOwnProperty.call(req.body, campo)) {
+        padre[campo] = req.body[campo];
+      }
+    });
+    await padre.save();
 
     return res.status(200).json(padre);
   } catch (error) {

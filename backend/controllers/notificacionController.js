@@ -32,7 +32,9 @@ export async function notificarAlerta(req, res) {
 
     const nino = await Nino.findById(alerta.nino._id).populate('padres');
     const padres = nino.padres || [];
-    const padresConTelegram = padres.filter((padre) => padre.telegramChatId);
+    const padresConTelegram = padres.filter(
+      (padre) => padre.metodoContacto?.includes('telegram') && padre.telegramChatId
+    );
 
     if (padresConTelegram.length === 0) {
       return res.status(200).json({ mensaje: 'Ningún padre tiene Telegram configurado', enviadas: 0 });
@@ -41,7 +43,7 @@ export async function notificarAlerta(req, res) {
     let enviadas = 0;
 
     for (const padre of padresConTelegram) {
-      const mensaje = `🏥 <b>SCCVI - Alerta de Salud</b>\n\nEstimado/a ${padre.nombre},\n\n${alerta.mensaje}\n\nPor favor acuda al centro de salud.`;
+      const mensaje = `🏥 <b>SCCVI - Alerta de Salud</b>\n\nEstimado/a ${padre.nombreCompleto},\n\n${alerta.mensaje}\n\nPor favor acuda al centro de salud.`;
       const resultado = await enviarMensajeTelegram(padre.telegramChatId, mensaje);
 
       await Notificacion.create({

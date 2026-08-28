@@ -40,11 +40,13 @@ async function run() {
 
     console.log('✅ Creando padre...');
     const padre = await Padre.create({
-      nombre: 'Juan Pérez',
+      primerNombre: 'Juan',
+      primerApellido: 'Pérez',
+      segundoApellido: 'López',
       dpi: '1234567890101',
       telefono: '5555-5555',
       email: 'juan.perez@example.com',
-      canalPreferido: 'whatsapp',
+      metodoContacto: ['telegram', 'email'],
       telegramChatId: '987654321',
       comunidad: comunidad._id,
     });
@@ -52,7 +54,9 @@ async function run() {
 
     console.log('✅ Creando niño...');
     const nino = await Nino.create({
-      nombre: 'Mateo Pérez',
+      primerNombre: 'Mateo',
+      primerApellido: 'Pérez',
+      segundoApellido: 'López',
       fechaNacimiento: new Date('2024-01-15'),
       sexo: 'M',
       comunidad: comunidad._id,
