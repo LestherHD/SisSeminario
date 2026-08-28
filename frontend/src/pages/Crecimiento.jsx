@@ -42,22 +42,39 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-function obtenerColorPercentil(percentil) {
+function etiquetaPercentil(percentil) {
+  if (percentil == null) {
+    return { texto: '—', color: 'default' };
+  }
+
   const valor = Number(percentil);
 
   if (Number.isNaN(valor)) {
+    return { texto: '—', color: 'default' };
+  }
+
+  if (valor < 5) {
+    return { texto: `${percentil} - Desnutrición`, color: 'error' };
+  }
+
+  if (valor <= 85) {
+    return { texto: `${percentil} - Normal`, color: 'success' };
+  }
+
+  if (valor <= 95) {
+    return { texto: `${percentil} - Sobrepeso`, color: 'warning' };
+  }
+
+  return { texto: `${percentil} - Obesidad`, color: 'error' };
+}
+
+function colorPercentilTalla(percentil) {
+  if (percentil == null || Number.isNaN(Number(percentil))) {
     return 'default';
   }
 
-  if (valor < 5 || valor > 95) {
-    return 'error';
-  }
-
-  if ((valor >= 5 && valor <= 15) || (valor >= 85 && valor <= 95)) {
-    return 'warning';
-  }
-
-  return 'success';
+  const valor = Number(percentil);
+  return valor >= 5 && valor <= 95 ? 'success' : 'error';
 }
 
 function formatoFechaHoy() {
@@ -246,6 +263,14 @@ export default function Crecimiento() {
               color="primary"
               variant="outlined"
             />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {ninoObj.padres?.length > 0
+                ? `Padres: ${ninoObj.padres
+                    .map((padre) => padre.nombreCompleto)
+                    .filter(Boolean)
+                    .join(', ')}`
+                : 'Sin padres registrados'}
+            </Typography>
           </Box>
         )}
 
@@ -284,7 +309,20 @@ export default function Crecimiento() {
             )}
 
             {!cargando && !error && (
-              <TableContainer component={Paper}>
+              <>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  flexWrap="wrap"
+                  sx={{ mb: 2 }}
+                >
+                  <Chip size="small" color="error" label="🔴 Desnutrición (<5)" />
+                  <Chip size="small" color="success" label="🟢 Normal (5-85)" />
+                  <Chip size="small" color="warning" label="🟡 Sobrepeso (85-95)" />
+                  <Chip size="small" color="error" label="🔴 Obesidad (>95)" />
+                </Stack>
+                <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
                     <TableRow>
@@ -292,14 +330,17 @@ export default function Crecimiento() {
                       <TableCell>Edad (meses)</TableCell>
                       <TableCell>Peso (kg)</TableCell>
                       <TableCell>Talla (cm)</TableCell>
-                      <TableCell>Percentil de Peso</TableCell>
-                      <TableCell>Percentil Talla</TableCell>
+                      <TableCell>Percentil de peso</TableCell>
+                      <TableCell>Percentil de talla</TableCell>
                       <TableCell>Acciones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {mediciones.length > 0 ? (
-                      mediciones.map((medicion) => (
+                      mediciones.map((medicion) => {
+                        const percentilPeso = etiquetaPercentil(medicion.percentilPeso);
+
+                        return (
                         <TableRow key={medicion._id}>
                           <TableCell>
                             {medicion.fecha ? new Date(medicion.fecha).toLocaleDateString('es-GT') : '-'}
@@ -314,15 +355,15 @@ export default function Crecimiento() {
                           <TableCell>
                             <Chip
                               size="small"
-                              label={medicion.percentilPeso ?? '-'}
-                              color={obtenerColorPercentil(medicion.percentilPeso)}
+                              label={percentilPeso.texto}
+                              color={percentilPeso.color}
                             />
                           </TableCell>
                           <TableCell>
                             <Chip
                               size="small"
-                              label={medicion.percentilTalla ?? '-'}
-                              color={obtenerColorPercentil(medicion.percentilTalla)}
+                              label={medicion.percentilTalla ?? '—'}
+                              color={colorPercentilTalla(medicion.percentilTalla)}
                             />
                           </TableCell>
                           <TableCell>
@@ -333,7 +374,8 @@ export default function Crecimiento() {
                             )}
                           </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     ) : (
                       <TableRow>
                         <TableCell colSpan={7} align="center">
@@ -343,7 +385,8 @@ export default function Crecimiento() {
                     )}
                   </TableBody>
                 </Table>
-              </TableContainer>
+                </TableContainer>
+              </>
             )}
 
             {!cargando && !error && mediciones.length > 0 && (

@@ -253,6 +253,14 @@ export default function Vacunacion() {
               color="primary"
               variant="outlined"
             />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {ninoObj.padres?.length > 0
+                ? `Padres: ${ninoObj.padres
+                    .map((padre) => padre.nombreCompleto)
+                    .filter(Boolean)
+                    .join(', ')}`
+                : 'Sin padres registrados'}
+            </Typography>
           </Box>
         )}
 
