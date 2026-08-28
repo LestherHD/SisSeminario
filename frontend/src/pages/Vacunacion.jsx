@@ -247,21 +247,31 @@ export default function Vacunacion() {
         />
 
         {ninoObj && (
-          <Box sx={{ mb: 2 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            flexWrap="wrap"
+            sx={{ mb: 2 }}
+          >
             <Chip
               label={`Edad: ${formatearEdad(ninoObj.fechaNacimiento)}`}
               color="primary"
               variant="outlined"
             />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {ninoObj.padres?.length > 0
-                ? `Padres: ${ninoObj.padres
-                    .map((padre) => padre.nombreCompleto)
-                    .filter(Boolean)
-                    .join(', ')}`
-                : 'Sin padres registrados'}
-            </Typography>
-          </Box>
+            <Chip
+              label={
+                ninoObj.padres?.length > 0
+                  ? `Padres: ${ninoObj.padres
+                      .map((padre) => padre.nombreCompleto)
+                      .filter(Boolean)
+                      .join(', ')}`
+                  : 'Sin padres registrados'
+              }
+              color="primary"
+              variant="outlined"
+            />
+          </Stack>
         )}
 
         {!ninoSeleccionado && (
