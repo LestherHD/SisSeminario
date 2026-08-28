@@ -25,11 +25,14 @@ import {
   Stack,
   IconButton,
   Autocomplete,
+  Tooltip,
+  InputAdornment,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import RestoreIcon from '@mui/icons-material/Restore';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import SearchIcon from '@mui/icons-material/Search';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import { departamentos } from '../data/guatemala.js';
 
@@ -46,6 +49,8 @@ export default function Comunidades() {
   const [form, setForm] = useState({ nombre: '', departamento: '', municipio: '' });
   const [guardando, setGuardando] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [grupoSeleccionado, setGrupoSeleccionado] = useState(null);
 
   const cargarComunidades = async () => {
     setCargando(true);
@@ -70,6 +75,18 @@ export default function Comunidades() {
     setDialogoAbierto(true);
   };
 
+  const abrirCrearEnGrupo = (grupo) => {
+    setErrorFormulario('');
+    setForm({
+      nombre: '',
+      departamento: grupo.departamento,
+      municipio: grupo.municipio,
+    });
+    setEditando(null);
+    setGrupoSeleccionado(null);
+    setDialogoAbierto(true);
+  };
+
   const abrirEditar = (comunidad) => {
     setErrorFormulario('');
     setForm({
@@ -78,6 +95,7 @@ export default function Comunidades() {
       municipio: comunidad.municipio || '',
     });
     setEditando(comunidad);
+    setGrupoSeleccionado(null);
     setDialogoAbierto(true);
   };
 
@@ -141,18 +159,46 @@ export default function Comunidades() {
     }
   };
 
-  const reactivar = async (id) => {
-    try {
-      await api.patch(`/comunidades/${id}/reactivar`);
-      await cargarComunidades();
-    } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al reactivar la comunidad');
-    }
-  };
-
   useEffect(() => {
     cargarComunidades();
   }, [mostrarInactivos]);
+
+  const grupos = Array.from(
+    comunidades.reduce((mapa, comunidad) => {
+      const clave = `${comunidad.departamento}::${comunidad.municipio}`;
+      const grupo = mapa.get(clave) || {
+        departamento: comunidad.departamento,
+        municipio: comunidad.municipio,
+        cantidadComunidades: 0,
+        totalFamilias: 0,
+        comunidades: [],
+      };
+
+      grupo.cantidadComunidades += 1;
+      grupo.totalFamilias += Number(comunidad.numeroFamilias) || 0;
+      grupo.comunidades.push(comunidad);
+      mapa.set(clave, grupo);
+      return mapa;
+    }, new Map()).values()
+  ).sort((a, b) =>
+    a.departamento.localeCompare(b.departamento, 'es') ||
+    a.municipio.localeCompare(b.municipio, 'es')
+  );
+
+  const textoBusqueda = busqueda.trim().toLocaleLowerCase('es');
+  const gruposFiltrados = grupos.filter(
+    (grupo) =>
+      grupo.departamento.toLocaleLowerCase('es').includes(textoBusqueda) ||
+      grupo.municipio.toLocaleLowerCase('es').includes(textoBusqueda)
+  );
+
+  const grupoVisible = grupoSeleccionado
+    ? grupos.find(
+        (grupo) =>
+          grupo.departamento === grupoSeleccionado.departamento &&
+          grupo.municipio === grupoSeleccionado.municipio
+      ) || { ...grupoSeleccionado, comunidades: [], cantidadComunidades: 0, totalFamilias: 0 }
+    : null;
 
   return (
     <Box>
@@ -201,60 +247,123 @@ export default function Comunidades() {
         )}
 
         {!cargando && !error && (
-          <TableContainer component={Paper}>
-            <Table>
+          <Stack spacing={2}>
+            <TextField
+              label="Buscar por departamento o municipio"
+              value={busqueda}
+              onChange={(event) => setBusqueda(event.target.value)}
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Departamento</TableCell>
+                    <TableCell>Municipio</TableCell>
+                    <TableCell>Comunidades</TableCell>
+                    <TableCell>Familias</TableCell>
+                    <TableCell>Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {gruposFiltrados.length > 0 ? (
+                    gruposFiltrados.map((grupo) => (
+                      <TableRow key={`${grupo.departamento}-${grupo.municipio}`}>
+                        <TableCell>{grupo.departamento}</TableCell>
+                        <TableCell>{grupo.municipio}</TableCell>
+                        <TableCell>{grupo.cantidadComunidades}</TableCell>
+                        <TableCell>{grupo.totalFamilias}</TableCell>
+                        <TableCell>
+                          <Tooltip title="Ver comunidades">
+                            <IconButton
+                              aria-label={`Ver comunidades de ${grupo.municipio}`}
+                              color="primary"
+                              onClick={() => setGrupoSeleccionado(grupo)}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        {busqueda
+                          ? 'No hay municipios que coincidan con la búsqueda'
+                          : 'No hay comunidades registradas'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Stack>
+        )}
+      </Box>
+
+      <Dialog
+        open={Boolean(grupoSeleccionado)}
+        onClose={() => setGrupoSeleccionado(null)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>
+          Comunidades de {grupoVisible?.municipio}, {grupoVisible?.departamento}
+        </DialogTitle>
+        <DialogContent>
+          <TableContainer component={Paper} variant="outlined" sx={{ mt: 1 }}>
+            <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell>Departamento</TableCell>
-                  <TableCell>Municipio</TableCell>
-                  <TableCell>N° Familias</TableCell>
+                  <TableCell>Comunidad / Aldea</TableCell>
+                  <TableCell>Familias</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {comunidades.length > 0 ? (
-                  comunidades.map((comunidad) => (
+                {grupoVisible?.comunidades.length > 0 ? (
+                  grupoVisible.comunidades.map((comunidad) => (
                     <TableRow key={comunidad._id}>
                       <TableCell>{comunidad.nombre}</TableCell>
-                      <TableCell>{comunidad.departamento}</TableCell>
-                      <TableCell>{comunidad.municipio}</TableCell>
                       <TableCell>{comunidad.numeroFamilias}</TableCell>
                       <TableCell>
                         <Chip
+                          size="small"
                           color={comunidad.activo ? 'success' : 'default'}
                           label={comunidad.activo ? 'Activa' : 'Inactiva'}
                         />
                       </TableCell>
                       <TableCell>
                         {puedeGestionar ? (
-                          comunidad.activo ? (
-                            <Stack direction="row" spacing={1}>
+                          <Stack direction="row" spacing={1}>
+                            <Tooltip title="Editar comunidad">
                               <IconButton
-                                aria-label="editar"
+                                aria-label={`Editar ${comunidad.nombre}`}
                                 onClick={() => abrirEditar(comunidad)}
                               >
                                 <EditIcon />
                               </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Borrar comunidad">
                               <IconButton
-                                aria-label="eliminar"
+                                aria-label={`Borrar ${comunidad.nombre}`}
                                 color="error"
                                 onClick={() => eliminar(comunidad._id)}
                               >
                                 <DeleteIcon />
                               </IconButton>
-                            </Stack>
-                          ) : (
-                            <IconButton
-                              aria-label="reactivar"
-                              color="primary"
-                              title="Reactivar"
-                              onClick={() => reactivar(comunidad._id)}
-                            >
-                              <RestoreIcon />
-                            </IconButton>
-                          )
+                            </Tooltip>
+                          </Stack>
                         ) : (
                           '—'
                         )}
@@ -263,16 +372,28 @@ export default function Comunidades() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      No hay comunidades registradas
+                    <TableCell colSpan={4} align="center">
+                      No hay comunidades para mostrar
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </TableContainer>
-        )}
-      </Box>
+        </DialogContent>
+        <DialogActions>
+          {puedeGestionar && grupoVisible && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => abrirCrearEnGrupo(grupoVisible)}
+            >
+              Nueva comunidad en {grupoVisible.municipio}
+            </Button>
+          )}
+          <Button onClick={() => setGrupoSeleccionado(null)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={dialogoAbierto} onClose={cerrarDialogo} fullWidth maxWidth="sm">
         <DialogTitle>{editando ? 'Editar Comunidad' : 'Nueva Comunidad'}</DialogTitle>
