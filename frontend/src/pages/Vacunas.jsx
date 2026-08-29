@@ -40,6 +40,10 @@ function rangoEdadValido(valor) {
   return Boolean(coincidencia && Number(coincidencia[1]) <= Number(coincidencia[2]));
 }
 
+function textoRangoEdad(valor) {
+  return valor ? `${valor} años` : '—';
+}
+
 function textoUnidadIntervalo(unidad) {
   return { dias: 'días', semanas: 'semanas', meses: 'meses' }[unidad] || 'meses';
 }
@@ -193,9 +197,9 @@ export default function Vacunas() {
   const camposConfirmacion = [
     { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
     {
-      label: 'Rango de edad',
-      valor: form.rangoEdad || 'No especificado',
-      valorAnterior: editando?.rangoEdad,
+      label: 'Rango de edad (años)',
+      valor: form.rangoEdad ? textoRangoEdad(form.rangoEdad) : 'No especificado',
+      valorAnterior: editando?.rangoEdad ? textoRangoEdad(editando.rangoEdad) : undefined,
     },
     {
       label: 'Dosis (ml)',
@@ -325,7 +329,7 @@ export default function Vacunas() {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Rango de edad</TableCell>
+                  <TableCell>Rango de edad (años)</TableCell>
                   <TableCell>Dosis (ml)</TableCell>
                   <TableCell>N° Dosis</TableCell>
                   <TableCell>Intervalo</TableCell>
@@ -338,7 +342,7 @@ export default function Vacunas() {
                   vacunasFiltradas.map((vacuna) => (
                     <TableRow key={vacuna._id}>
                       <TableCell>{vacuna.nombre}</TableCell>
-                      <TableCell>{vacuna.rangoEdad || '—'}</TableCell>
+                      <TableCell>{textoRangoEdad(vacuna.rangoEdad)}</TableCell>
                       <TableCell>{vacuna.dosisMl != null ? `${vacuna.dosisMl} ml` : '—'}</TableCell>
                       <TableCell>{vacuna.numeroDosis ?? 1}</TableCell>
                       <TableCell>
@@ -415,7 +419,7 @@ export default function Vacunas() {
               }}
             />
             <TextField
-              label="Rango de edad recomendada"
+              label="Rango de edad recomendada (años)"
               required
               fullWidth
               placeholder="ej. 0-1"
@@ -423,7 +427,7 @@ export default function Vacunas() {
               helperText={
                 form.rangoEdad !== '' && !rangoEdadValido(form.rangoEdad)
                   ? 'Formato incorrecto. Use solamente números y un guion, por ejemplo: 0-1'
-                  : 'Formato obligatorio: 0-1, 1-3, 5-10'
+                  : 'Ingrese el rango en años: 0-1, 1-3, 5-10'
               }
               value={form.rangoEdad}
               onChange={(e) => {

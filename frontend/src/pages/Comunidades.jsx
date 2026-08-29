@@ -27,6 +27,7 @@ import {
   Autocomplete,
   Tooltip,
   InputAdornment,
+  Pagination,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -52,6 +53,7 @@ export default function Comunidades() {
   const [guardando, setGuardando] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  const [pagina, setPagina] = useState(1);
   const [grupoSeleccionado, setGrupoSeleccionado] = useState(null);
   const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
   const [eliminando, setEliminando] = useState(false);
@@ -194,6 +196,13 @@ export default function Comunidades() {
       grupo.departamento.toLocaleLowerCase('es').includes(textoBusqueda) ||
       grupo.municipio.toLocaleLowerCase('es').includes(textoBusqueda)
   );
+  const elementosPorPagina = 20;
+  const totalPaginas = Math.max(1, Math.ceil(gruposFiltrados.length / elementosPorPagina));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const gruposPaginados = gruposFiltrados.slice(
+    (paginaActual - 1) * elementosPorPagina,
+    paginaActual * elementosPorPagina
+  );
 
   const grupoVisible = grupoSeleccionado
     ? grupos.find(
@@ -232,7 +241,10 @@ export default function Comunidades() {
               control={
                 <Switch
                   checked={mostrarInactivos}
-                  onChange={(e) => setMostrarInactivos(e.target.checked)}
+                  onChange={(e) => {
+                    setMostrarInactivos(e.target.checked);
+                    setPagina(1);
+                  }}
                 />
               }
               label="Mostrar inactivas"
@@ -267,7 +279,10 @@ export default function Comunidades() {
             <TextField
               label="Buscar por departamento o municipio"
               value={busqueda}
-              onChange={(event) => setBusqueda(event.target.value)}
+                  onChange={(event) => {
+                    setBusqueda(event.target.value);
+                    setPagina(1);
+                  }}
               fullWidth
               InputProps={{
                 startAdornment: (
@@ -291,7 +306,7 @@ export default function Comunidades() {
                 </TableHead>
                 <TableBody>
                   {gruposFiltrados.length > 0 ? (
-                    gruposFiltrados.map((grupo) => (
+                    gruposPaginados.map((grupo) => (
                       <TableRow key={`${grupo.departamento}-${grupo.municipio}`}>
                         <TableCell>{grupo.departamento}</TableCell>
                         <TableCell>{grupo.municipio}</TableCell>
@@ -322,6 +337,18 @@ export default function Comunidades() {
                 </TableBody>
               </Table>
             </TableContainer>
+            {gruposFiltrados.length > 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', overflowX: 'auto' }}>
+                <Pagination
+                  count={totalPaginas}
+                  page={paginaActual}
+                  onChange={(_, nuevaPagina) => setPagina(nuevaPagina)}
+                  color="primary"
+                  showFirstButton
+                  showLastButton
+                />
+              </Box>
+            )}
           </Stack>
         )}
       </Box>

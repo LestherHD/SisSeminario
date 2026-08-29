@@ -28,6 +28,7 @@ import {
   Autocomplete,
   InputAdornment,
   Tooltip,
+  Pagination,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -59,6 +60,7 @@ export default function Ninos() {
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [busquedaPadre, setBusquedaPadre] = useState('');
   const [busquedaNino, setBusquedaNino] = useState('');
+  const [pagina, setPagina] = useState(1);
   const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
   const [eliminando, setEliminando] = useState(false);
   const [carnetAbierto, setCarnetAbierto] = useState(false);
@@ -307,6 +309,13 @@ export default function Ninos() {
   const ninosFiltrados = ninos.filter((nino) =>
     nino.nombreCompleto?.toLowerCase().includes(busquedaNino.trim().toLowerCase())
   );
+  const elementosPorPagina = 20;
+  const totalPaginas = Math.max(1, Math.ceil(ninosFiltrados.length / elementosPorPagina));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const ninosPaginados = ninosFiltrados.slice(
+    (paginaActual - 1) * elementosPorPagina,
+    paginaActual * elementosPorPagina
+  );
 
   return (
     <Box>
@@ -337,7 +346,10 @@ export default function Ninos() {
               control={
                 <Switch
                   checked={mostrarInactivos}
-                  onChange={(e) => setMostrarInactivos(e.target.checked)}
+                  onChange={(e) => {
+                    setMostrarInactivos(e.target.checked);
+                    setPagina(1);
+                  }}
                 />
               }
               label="Mostrar inactivos"
@@ -367,7 +379,10 @@ export default function Ninos() {
             <TextField
               label="Buscar niño..."
               value={busquedaNino}
-              onChange={(event) => setBusquedaNino(event.target.value)}
+              onChange={(event) => {
+                setBusquedaNino(event.target.value);
+                setPagina(1);
+              }}
               fullWidth
               InputProps={{
                 startAdornment: (
@@ -393,7 +408,7 @@ export default function Ninos() {
               </TableHead>
               <TableBody>
                 {ninosFiltrados.length > 0 ? (
-                  ninosFiltrados.map((nino) => (
+                  ninosPaginados.map((nino) => (
                     <TableRow key={nino._id}>
                       <TableCell>{nino.nombreCompleto}</TableCell>
                       <TableCell>{new Date(nino.fechaNacimiento).toLocaleDateString('es-GT')}</TableCell>
@@ -472,6 +487,18 @@ export default function Ninos() {
               </TableBody>
             </Table>
             </TableContainer>
+            {ninosFiltrados.length > 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', overflowX: 'auto' }}>
+                <Pagination
+                  count={totalPaginas}
+                  page={paginaActual}
+                  onChange={(_, nuevaPagina) => setPagina(nuevaPagina)}
+                  color="primary"
+                  showFirstButton
+                  showLastButton
+                />
+              </Box>
+            )}
           </Stack>
         )}
       </Box>

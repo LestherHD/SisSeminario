@@ -28,6 +28,7 @@ import {
   Checkbox,
   Switch,
   InputAdornment,
+  Pagination,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -51,6 +52,7 @@ export default function Padres() {
   const [errorFormulario, setErrorFormulario] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [busquedaPadre, setBusquedaPadre] = useState('');
+  const [pagina, setPagina] = useState(1);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -249,6 +251,13 @@ export default function Padres() {
   const padresFiltrados = padres.filter((padre) =>
     padre.nombreCompleto?.toLowerCase().includes(busquedaPadre.trim().toLowerCase())
   );
+  const elementosPorPagina = 20;
+  const totalPaginas = Math.max(1, Math.ceil(padresFiltrados.length / elementosPorPagina));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const padresPaginados = padresFiltrados.slice(
+    (paginaActual - 1) * elementosPorPagina,
+    paginaActual * elementosPorPagina
+  );
 
   return (
     <Box>
@@ -279,7 +288,10 @@ export default function Padres() {
               control={
                 <Switch
                   checked={mostrarInactivos}
-                  onChange={(event) => setMostrarInactivos(event.target.checked)}
+                  onChange={(event) => {
+                    setMostrarInactivos(event.target.checked);
+                    setPagina(1);
+                  }}
                 />
               }
               label="Mostrar inactivos"
@@ -309,7 +321,10 @@ export default function Padres() {
             <TextField
               label="Buscar padre..."
               value={busquedaPadre}
-              onChange={(event) => setBusquedaPadre(event.target.value)}
+              onChange={(event) => {
+                setBusquedaPadre(event.target.value);
+                setPagina(1);
+              }}
               fullWidth
               InputProps={{
                 startAdornment: (
@@ -336,7 +351,7 @@ export default function Padres() {
               </TableHead>
               <TableBody>
                 {padresFiltrados.length > 0 ? (
-                  padresFiltrados.map((padre) => (
+                  padresPaginados.map((padre) => (
                     <TableRow key={padre._id}>
                       <TableCell>{padre.nombreCompleto}</TableCell>
                       <TableCell>{padre.dpi}</TableCell>
@@ -412,6 +427,18 @@ export default function Padres() {
               </TableBody>
             </Table>
             </TableContainer>
+            {padresFiltrados.length > 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', overflowX: 'auto' }}>
+                <Pagination
+                  count={totalPaginas}
+                  page={paginaActual}
+                  onChange={(_, nuevaPagina) => setPagina(nuevaPagina)}
+                  color="primary"
+                  showFirstButton
+                  showLastButton
+                />
+              </Box>
+            )}
           </Stack>
         )}
       </Box>
