@@ -18,6 +18,13 @@ export async function proteger(req, res, next) {
       return res.status(401).json({ mensaje: 'Usuario no encontrado' });
     }
 
+    if (
+      usuario.passwordChangedAt &&
+      decoded.iat * 1000 < usuario.passwordChangedAt.getTime()
+    ) {
+      return res.status(401).json({ mensaje: 'La contraseña cambió. Inicie sesión nuevamente.' });
+    }
+
     req.usuario = usuario;
     return next();
   } catch (error) {

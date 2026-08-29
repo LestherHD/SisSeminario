@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'node:url';
 import authRoutes from './routes/authRoutes.js';
 import comunidadRoutes from './routes/comunidadRoutes.js';
 import padreRoutes from './routes/padreRoutes.js';
@@ -15,7 +16,7 @@ import notificacionRoutes from './routes/notificacionRoutes.js';
 import carnetRoutes from './routes/carnetRoutes.js';
 import { iniciarPolling } from './services/telegramBot.js';
 
-dotenv.config();
+dotenv.config({ path: fileURLToPath(new URL('./.env', import.meta.url)) });
 
 const app = express();
 app.use(cors());

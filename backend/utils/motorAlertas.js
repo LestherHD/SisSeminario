@@ -5,6 +5,7 @@ import Alerta from '../models/Alerta.js';
 import Padre from '../models/Padre.js';
 import Notificacion from '../models/Notificacion.js';
 import { enviarMensajeTelegram } from '../services/telegramService.js';
+import { enviarAlertaEmail } from '../services/emailService.js';
 
 const TRES_MESES_MS = 1000 * 60 * 60 * 24 * 30 * 3;
 
@@ -19,44 +20,60 @@ async function existeAlertaActiva(ninoId, motivo) {
   return Boolean(alerta);
 }
 
-async function notificarAlertaCritica(alerta) {
-  if (alerta.tipo !== 'critica') {
-    return;
-  }
-
+async function notificarAlertaNueva(alerta) {
   try {
     const nino = await Nino.findById(alerta.nino).populate('padres');
     const padres = nino?.padres || [];
 
     for (const padre of padres) {
-      if (!padre.metodoContacto?.includes('telegram') || !padre.telegramChatId) {
-        continue;
+      if (padre.metodoContacto?.includes('telegram') && padre.telegramChatId) {
+        const yaNotificadoTelegram = await Notificacion.findOne({
+          alerta: alerta._id,
+          padre: padre._id,
+          canal: 'telegram',
+          estado: 'enviada',
+        });
+
+        if (!yaNotificadoTelegram) {
+          const encabezado = alerta.tipo === 'critica' ? '🚨 Alerta Crítica' : '🏥 Aviso de Salud';
+          const mensaje = `<b>SCCVI - ${encabezado}</b>\n\nEstimado/a ${padre.nombreCompleto},\n\nInformación sobre ${nino.nombreCompleto}:\n${alerta.mensaje}\n\nPor favor comuníquese o acuda al centro de salud.`;
+          const resultado = await enviarMensajeTelegram(padre.telegramChatId, mensaje);
+
+          await Notificacion.create({
+            padre: padre._id,
+            alerta: alerta._id,
+            canal: 'telegram',
+            mensaje,
+            estado: resultado.exito ? 'enviada' : 'fallida',
+            fechaEnvio: new Date(),
+          });
+        }
       }
 
-      const yaNotificado = await Notificacion.findOne({
-        alerta: alerta._id,
-        padre: padre._id,
-        estado: 'enviada',
-      });
+      if (padre.metodoContacto?.includes('email') && padre.email?.trim()) {
+        const yaNotificadoEmail = await Notificacion.findOne({
+          alerta: alerta._id,
+          padre: padre._id,
+          canal: 'email',
+          estado: 'enviada',
+        });
 
-      if (yaNotificado) {
-        continue;
+        if (!yaNotificadoEmail) {
+          const resultado = await enviarAlertaEmail(padre, nino, alerta);
+
+          await Notificacion.create({
+            padre: padre._id,
+            alerta: alerta._id,
+            canal: 'email',
+            mensaje: alerta.mensaje,
+            estado: resultado.exito ? 'enviada' : 'fallida',
+            fechaEnvio: new Date(),
+          });
+        }
       }
-
-      const mensaje = `🚨 <b>SCCVI - Alerta Crítica</b>\n\nEstimado/a ${padre.nombreCompleto},\n\n${alerta.mensaje}\n\n<b>Por favor acuda al centro de salud lo antes posible.</b>`;
-      const resultado = await enviarMensajeTelegram(padre.telegramChatId, mensaje);
-
-      await Notificacion.create({
-        padre: padre._id,
-        alerta: alerta._id,
-        canal: 'telegram',
-        mensaje,
-        estado: resultado.exito ? 'enviada' : 'fallida',
-        fechaEnvio: new Date(),
-      });
     }
   } catch (error) {
-    console.error('Error notificando alerta crítica:', error.message);
+    console.error('Error notificando alerta:', error.message);
   }
 }
 
@@ -83,7 +100,7 @@ export async function analizarNino(ninoId) {
     nino: ninoId,
     activo: true,
     proximaDosis: { $exists: true, $ne: null, $lt: new Date() },
-  });
+  }).populate('vacuna', 'nombre');
 
   const evaluaciones = {
     desnutricion: {
@@ -108,7 +125,9 @@ export async function analizarNino(ninoId) {
     vacuna_atrasada: {
       activa: Boolean(dosisAtrasada),
       tipo: 'preventiva',
-      mensaje: `El niño ${nino.nombreCompleto} tiene una o más dosis de vacuna atrasadas.`,
+      mensaje: dosisAtrasada
+        ? `La próxima dosis de ${dosisAtrasada.vacuna?.nombre || 'una vacuna'} para ${nino.nombreCompleto} estaba programada para el ${new Date(dosisAtrasada.proximaDosis).toLocaleDateString('es-GT')} y se encuentra pendiente.`
+        : '',
     },
   };
 
@@ -128,9 +147,7 @@ export async function analizarNino(ninoId) {
         });
         creadas.push(alertaCreada);
 
-        if (alertaCreada.tipo === 'critica') {
-          await notificarAlertaCritica(alertaCreada);
-        }
+        await notificarAlertaNueva(alertaCreada);
       }
     } else {
       const resultado = await Alerta.updateMany(

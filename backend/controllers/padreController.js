@@ -1,4 +1,5 @@
 import Padre from '../models/Padre.js';
+import { enviarBienvenida } from '../services/emailService.js';
 
 function validarMetodoContacto(metodoContacto, email) {
   if (!Array.isArray(metodoContacto) || metodoContacto.length === 0) {
@@ -46,6 +47,20 @@ export async function crear(req, res) {
       telegramChatId,
       comunidad,
     });
+
+    if (padre.metodoContacto?.includes('email') && padre.email?.trim()) {
+      void enviarBienvenida(padre)
+        .then((resultado) => {
+          if (resultado.exito) {
+            console.log(`Correo de bienvenida enviado a ${padre.email}`);
+          } else {
+            console.error(`No se pudo enviar la bienvenida a ${padre.email}: ${resultado.error}`);
+          }
+        })
+        .catch((errorEmail) => {
+          console.error(`Error inesperado al enviar la bienvenida a ${padre.email}:`, errorEmail.message);
+        });
+    }
 
     return res.status(201).json(padre);
   } catch (error) {
