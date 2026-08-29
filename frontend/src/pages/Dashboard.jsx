@@ -212,7 +212,7 @@ export default function Dashboard() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
       <Box
         sx={{
           display: 'flex',
@@ -224,7 +224,10 @@ export default function Dashboard() {
         }}
       >
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, color: 'text.primary', fontSize: { xs: '2rem', sm: '2.125rem' } }}
+          >
             Panel de Control
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -237,7 +240,7 @@ export default function Dashboard() {
           value={periodo}
           onChange={(event) => setPeriodo(event.target.value)}
           size="small"
-          sx={{ minWidth: 200 }}
+          sx={{ minWidth: { sm: 200 }, width: { xs: '100%', sm: 'auto' } }}
         >
           {Object.entries(ETIQUETAS_PERIODO).map(([valor, etiqueta]) => (
             <MenuItem key={valor} value={valor}>{etiqueta}</MenuItem>
@@ -260,7 +263,7 @@ export default function Dashboard() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(220px, 1fr))' },
               gap: 2,
             }}
           >
@@ -365,7 +368,7 @@ export default function Dashboard() {
               gap: 2,
             }}
           >
-            <Paper sx={{ p: 2.5 }}>
+            <Paper sx={{ p: { xs: 2, sm: 2.5 }, minWidth: 0 }}>
               <Typography variant="h6" sx={{ mb: 0.5 }}>Estado nutricional</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Último control de crecimiento de cada niño
@@ -373,7 +376,7 @@ export default function Dashboard() {
               <ResumenSegmentado elementos={estadoNutricional} />
             </Paper>
 
-            <Paper sx={{ p: 2.5 }}>
+            <Paper sx={{ p: { xs: 2, sm: 2.5 }, minWidth: 0 }}>
               <Typography variant="h6" sx={{ mb: 0.5 }}>Cobertura de vacunación</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Situación actual de los esquemas registrados
@@ -382,7 +385,7 @@ export default function Dashboard() {
             </Paper>
           </Box>
 
-          <Paper sx={{ p: 2.5 }}>
+          <Paper sx={{ p: { xs: 2, sm: 2.5 }, minWidth: 0, overflow: 'hidden' }}>
             <Box
               sx={{
                 display: 'flex',
@@ -417,7 +420,7 @@ export default function Dashboard() {
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(190px, 1fr))' },
                 gap: 1.5,
                 mb: 2,
               }}
@@ -469,11 +472,11 @@ export default function Dashboard() {
                 <BarChart
                   data={datosGeograficos}
                   layout="vertical"
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 5, right: 15, left: 0, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="nombre" width={145} />
+                  <YAxis type="category" dataKey="nombre" width={100} tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(valor) => [valor + ' niños', 'Total']} />
                   <Bar
                     dataKey="cantidad"
@@ -488,7 +491,7 @@ export default function Dashboard() {
             )}
           </Paper>
 
-          <Paper sx={{ p: 2.5 }}>
+          <Paper sx={{ p: { xs: 2, sm: 2.5 }, minWidth: 0 }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Niños con alertas críticas</Typography>
             {datos.ninosConAlertasCriticas.length === 0 ? (
               <Alert severity="success">No hay alertas críticas en este momento.</Alert>
@@ -496,7 +499,10 @@ export default function Dashboard() {
               <List disablePadding>
                 {datos.ninosConAlertasCriticas.map((item, index) => (
                   <Box key={item.ninoNombre + '-' + index}>
-                    <ListItem disableGutters>
+                    <ListItem
+                      disableGutters
+                      sx={{ alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1, flexWrap: 'wrap' }}
+                    >
                       <ListItemText primary={item.ninoNombre} secondary={item.mensaje} />
                       <Chip
                         label={item.fecha ? new Date(item.fecha).toLocaleDateString('es-GT') : '-'}

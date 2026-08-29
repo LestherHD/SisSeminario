@@ -14,6 +14,8 @@ export default function Inicio() {
         justifyContent: 'center',
         minHeight: '70vh',
         textAlign: 'center',
+        px: { xs: 2, sm: 3 },
+        overflow: 'hidden',
       }}
     >
       <img
@@ -22,7 +24,15 @@ export default function Inicio() {
         style={{ width: 220, maxWidth: '60%', marginBottom: 24 }}
       />
 
-      <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
+      <Typography
+        variant="h4"
+        sx={{
+          fontWeight: 700,
+          color: 'text.primary',
+          mb: 1,
+          fontSize: { xs: '1.75rem', sm: '2.125rem' },
+        }}
+      >
         Bienvenido al Sistema de Control de Crecimiento y Vacunación Infantil
       </Typography>
 

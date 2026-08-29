@@ -144,7 +144,7 @@ export default function Alertas() {
 
   return (
     <Box>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
         <Box
           sx={{
             display: 'flex',
@@ -155,8 +155,11 @@ export default function Alertas() {
             gap: 2,
           }}
         >
-          <Stack direction="row" spacing={0.5} alignItems="center">
-            <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: 700, color: 'text.primary', fontSize: { xs: '2rem', sm: '2.125rem' } }}
+            >
               Alertas de Salud
             </Typography>
             <Tooltip title="Información sobre alertas">
@@ -169,7 +172,12 @@ export default function Alertas() {
               </IconButton>
             </Tooltip>
           </Stack>
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="center"
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
+          >
             {puedeGestionar && (
               <Button
                 variant="contained"
@@ -178,6 +186,7 @@ export default function Alertas() {
                 }
                 onClick={analizar}
                 disabled={analizando}
+                fullWidth
               >
                 Analizar Ahora
               </Button>
@@ -203,12 +212,12 @@ export default function Alertas() {
           </Box>
         ) : (
           <>
-            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
               <TextField
                 label="Buscar por niño"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                sx={{ width: 300 }}
+                sx={{ width: { xs: '100%', sm: 300 } }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -222,7 +231,7 @@ export default function Alertas() {
                 label="Tipo"
                 value={filtroTipo}
                 onChange={(e) => setFiltroTipo(e.target.value)}
-                sx={{ width: 180 }}
+                sx={{ width: { xs: '100%', sm: 180 } }}
               >
                 <MenuItem value="todas">Todas</MenuItem>
                 <MenuItem value="critica">Críticas</MenuItem>
@@ -234,8 +243,8 @@ export default function Alertas() {
               Mostrando {alertasFiltradas.length} de {alertas.length} alertas
             </Typography>
 
-            <TableContainer component={Paper}>
-              <Table>
+            <TableContainer component={Paper} sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+              <Table sx={{ minWidth: 920 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>Tipo</TableCell>

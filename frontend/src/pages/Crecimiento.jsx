@@ -214,7 +214,7 @@ export default function Crecimiento() {
 
   return (
     <Box>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
         <Box
           sx={{
             display: 'flex',
@@ -225,7 +225,10 @@ export default function Crecimiento() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, color: 'text.primary', fontSize: { xs: '2rem', sm: '2.125rem' } }}
+          >
             Control de Crecimiento
           </Typography>
         </Box>
@@ -240,7 +243,7 @@ export default function Crecimiento() {
           }}
           isOptionEqualToValue={(option, value) => option._id === value._id}
           renderInput={(params) => <TextField {...params} label="Buscar niño" />}
-          sx={{ width: 350, mb: 3 }}
+          sx={{ width: { xs: '100%', sm: 350 }, mb: 3 }}
           noOptionsText="No se encontraron niños"
         />
 
@@ -292,7 +295,12 @@ export default function Crecimiento() {
             >
               <Typography variant="h6">Historial de mediciones</Typography>
               {puedeGestionar && (
-                <Button variant="contained" startIcon={<AddIcon />} onClick={abrirCrear}>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={abrirCrear}
+                  sx={{ width: { xs: '100%', sm: 'auto' } }}
+                >
                   Nueva Medición
                 </Button>
               )}
@@ -331,8 +339,8 @@ export default function Crecimiento() {
                     <Chip size="small" color="info" label="Talla alta (>95)" />
                   </Stack>
                 </Box>
-                <TableContainer component={Paper}>
-                <Table>
+                <TableContainer component={Paper} sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+                <Table sx={{ minWidth: 900 }}>
                   <TableHead>
                     <TableRow>
                       <TableCell>Fecha</TableCell>
@@ -408,7 +416,7 @@ export default function Crecimiento() {
                 <Typography variant="h6" sx={{ mb: 2 }}>
                   Evolución del crecimiento
                 </Typography>
-                <Paper sx={{ p: { xs: 1.5, sm: 2.5 }, width: '100%' }}>
+                <Paper sx={{ p: { xs: 1.5, sm: 2.5 }, width: '100%', minWidth: 0, overflow: 'hidden' }}>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Peso y talla por fecha de control. Pase el cursor sobre un punto para ver
                     los valores y la edad registrada.

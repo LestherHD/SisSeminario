@@ -127,7 +127,7 @@ export default function Layout() {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', width: '100%', minWidth: 0, overflowX: 'hidden' }}>
       <AppBar
         position="fixed"
         elevation={1}
@@ -138,7 +138,7 @@ export default function Layout() {
           ml: { md: `${anchoSidebar}px` },
         }}
       >
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', px: { xs: 1.5, sm: 3 } }}>
           {esMovil ? (
             <IconButton edge="start" onClick={() => setMovilAbierto(true)}>
               <MenuRounded />
@@ -153,7 +153,13 @@ export default function Layout() {
                 {modo === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
               </IconButton>
             </Tooltip>
-            <Typography variant="body2">{usuario?.nombre}</Typography>
+            <Typography
+              variant="body2"
+              noWrap
+              sx={{ display: { xs: 'none', sm: 'block' }, maxWidth: 180 }}
+            >
+              {usuario?.nombre}
+            </Typography>
             <IconButton onClick={(e) => setAnclaMenu(e.currentTarget)}>
               <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
                 {usuario?.nombre?.charAt(0).toUpperCase()}
@@ -204,9 +210,17 @@ export default function Layout() {
         component="main"
         sx={{
           flexGrow: 1,
+          width: { xs: '100%', md: `calc(100% - ${anchoSidebar}px)` },
+          minWidth: 0,
+          maxWidth: '100%',
           minHeight: '100vh',
           bgcolor: 'background.default',
           p: 0,
+          overflowX: 'hidden',
+          '& > *:not(.MuiToolbar-root)': {
+            minWidth: 0,
+            maxWidth: '100%',
+          },
         }}
       >
         <Toolbar />

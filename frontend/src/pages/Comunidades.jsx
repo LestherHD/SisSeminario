@@ -204,7 +204,7 @@ export default function Comunidades() {
 
   return (
     <Box>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
         <Box
           sx={{
             display: 'flex',
@@ -215,10 +215,18 @@ export default function Comunidades() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, color: 'text.primary', fontSize: { xs: '2rem', sm: '2.125rem' } }}
+          >
             Comunidades
           </Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
+          >
             <FormControlLabel
               control={
                 <Switch
@@ -229,7 +237,12 @@ export default function Comunidades() {
               label="Mostrar inactivas"
             />
             {puedeGestionar && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={abrirCrear}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={abrirCrear}
+                fullWidth
+              >
                 Nueva Comunidad
               </Button>
             )}
@@ -264,8 +277,8 @@ export default function Comunidades() {
               }}
             />
 
-            <TableContainer component={Paper}>
-              <Table>
+            <TableContainer component={Paper} sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+              <Table sx={{ minWidth: 650 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>Departamento</TableCell>

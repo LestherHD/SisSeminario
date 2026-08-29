@@ -253,7 +253,7 @@ export default function Vacunas() {
 
   return (
     <Box>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
         <Box
           sx={{
             display: 'flex',
@@ -264,10 +264,18 @@ export default function Vacunas() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, color: 'text.primary', fontSize: { xs: '2rem', sm: '2.125rem' } }}
+          >
             Vacunas
           </Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
+          >
             <FormControlLabel
               control={
                 <Switch
@@ -312,8 +320,8 @@ export default function Vacunas() {
                 ),
               }}
             />
-            <TableContainer component={Paper}>
-            <Table>
+            <TableContainer component={Paper} sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+            <Table sx={{ minWidth: 820 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>

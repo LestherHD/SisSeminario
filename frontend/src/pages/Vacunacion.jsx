@@ -218,7 +218,7 @@ export default function Vacunacion() {
 
   return (
     <Box>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', minWidth: 0 }}>
         <Box
           sx={{
             display: 'flex',
@@ -229,7 +229,10 @@ export default function Vacunacion() {
             gap: 2,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, color: 'text.primary', fontSize: { xs: '2rem', sm: '2.125rem' } }}
+          >
             Control de Vacunación
           </Typography>
         </Box>
@@ -244,7 +247,7 @@ export default function Vacunacion() {
           }}
           isOptionEqualToValue={(option, value) => option._id === value._id}
           renderInput={(params) => <TextField {...params} label="Buscar niño" />}
-          sx={{ width: 350, mb: 3 }}
+          sx={{ width: { xs: '100%', sm: 350 }, mb: 3 }}
           noOptionsText="No se encontraron niños"
         />
 
@@ -302,7 +305,12 @@ export default function Vacunacion() {
             >
               <Typography variant="h6">Esquema de vacunación</Typography>
               {puedeGestionar && (
-                <Button variant="contained" startIcon={<AddIcon />} onClick={abrirCrear}>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={abrirCrear}
+                  sx={{ width: { xs: '100%', sm: 'auto' } }}
+                >
                   Registrar Dosis
                 </Button>
               )}
@@ -326,7 +334,14 @@ export default function Vacunacion() {
                   Resumen del esquema
                 </Typography>
                 {resumen.length > 0 ? (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 4 }}>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(260px, 1fr))' },
+                      gap: 2,
+                      mb: 4,
+                    }}
+                  >
                     {resumen.map((item) => {
                       const porcentaje =
                         item.dosisTotales > 0
@@ -334,7 +349,7 @@ export default function Vacunacion() {
                           : 0;
 
                       return (
-                        <Paper key={item.vacuna?._id} sx={{ p: 2, width: 280 }}>
+                        <Paper key={item.vacuna?._id} sx={{ p: 2, width: '100%', minWidth: 0 }}>
                           <Stack spacing={1.5}>
                             <Typography variant="h6">{item.vacuna?.nombre || '-'}</Typography>
                             <Chip
@@ -366,8 +381,8 @@ export default function Vacunacion() {
                 <Typography variant="subtitle1" sx={{ mb: 2 }}>
                   Historial de dosis
                 </Typography>
-                <TableContainer component={Paper}>
-                  <Table>
+                <TableContainer component={Paper} sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+                  <Table sx={{ minWidth: 680 }}>
                     <TableHead>
                       <TableRow>
                         <TableCell>Vacuna</TableCell>
