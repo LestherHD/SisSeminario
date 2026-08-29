@@ -6,6 +6,7 @@ import {
   verExpedienteInterno,
 } from '../controllers/carnetController.js';
 import { proteger, autorizar } from '../middleware/authMiddleware.js';
+import { limitarConsultaCarnet } from '../middleware/rateLimitMiddleware.js';
 
 const router = express.Router();
 
@@ -17,6 +18,6 @@ router.get(
   autorizar('admin', 'encargado', 'personal'),
   verExpedienteInterno
 );
-router.post('/ver/:codigo', verCarnetPublico);
+router.post('/ver/:codigo', limitarConsultaCarnet, verCarnetPublico);
 
 export default router;

@@ -39,7 +39,29 @@ function generarToken(usuario) {
 
 export async function registrar(req, res) {
   try {
-    const { nombre, email, password, rol } = req.body;
+    if (req.usuario?.rol !== 'admin') {
+      return res.status(403).json({ mensaje: 'Solo un administrador puede crear usuarios' });
+    }
+
+    const nombre = req.body.nombre?.trim();
+    const email = req.body.email?.trim().toLowerCase();
+    const { password } = req.body;
+    const rol = req.body.rol || 'personal';
+
+    if (!nombre || !email || !password) {
+      return res.status(400).json({ mensaje: 'Nombre, correo y contraseña son obligatorios' });
+    }
+
+    if (!['admin', 'encargado', 'personal'].includes(rol)) {
+      return res.status(400).json({ mensaje: 'El rol seleccionado no es válido' });
+    }
+
+    if (!passwordSegura(password)) {
+      return res.status(400).json({
+        mensaje:
+          'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número',
+      });
+    }
 
     const existeUsuario = await Usuario.findOne({ email });
     if (existeUsuario) {
@@ -53,10 +75,8 @@ export async function registrar(req, res) {
       rol,
     });
 
-    const token = generarToken(usuario);
-
     return res.status(201).json({
-      token,
+      mensaje: 'Usuario creado correctamente',
       usuario: {
         id: usuario._id,
         nombre: usuario.nombre,
@@ -71,9 +91,14 @@ export async function registrar(req, res) {
 
 export async function login(req, res) {
   try {
-    const { email, password } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
+    const { password } = req.body;
 
-    const usuario = await Usuario.findOne({ email });
+    if (!email || !password) {
+      return res.status(401).json({ mensaje: 'Credenciales inválidas' });
+    }
+
+    const usuario = await Usuario.findOne({ email, activo: true });
     if (!usuario) {
       return res.status(401).json({ mensaje: 'Credenciales inválidas' });
     }
