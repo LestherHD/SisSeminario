@@ -95,7 +95,16 @@ export default function Layout() {
   };
 
   const contenidoSidebar = (
-    <Box sx={{ height: '100%', bgcolor: colorSidebar, display: 'flex', flexDirection: 'column' }}>
+    <Box
+      sx={{
+        height: '100dvh',
+        minHeight: '100dvh',
+        bgcolor: colorSidebar,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
       <Box sx={{ px: 3, py: 3 }}>
         <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, fontSize: '1.4rem' }}>
           SCCVI
@@ -107,7 +116,16 @@ export default function Layout() {
 
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
 
-      <List sx={{ flexGrow: 1, px: 1, py: 1 }}>
+      <List
+        sx={{
+          flexGrow: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          px: 1,
+          pt: 1,
+          pb: 'max(8px, env(safe-area-inset-bottom))',
+        }}
+      >
         {secciones
           .filter((seccion) => !seccion.roles || seccion.roles.includes(usuario?.rol))
           .map((seccion) => {
@@ -219,7 +237,12 @@ export default function Layout() {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: anchoSidebar,
+              height: '100dvh',
+              minHeight: '100dvh',
+              maxHeight: '100dvh',
+              bgcolor: colorSidebar,
               border: 'none',
+              overflow: 'hidden',
             },
           }}
         >

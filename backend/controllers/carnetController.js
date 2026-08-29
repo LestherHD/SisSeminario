@@ -18,6 +18,31 @@ async function generarCodigoUnico() {
   return codigo;
 }
 
+function obtenerOrigenFrontend(req) {
+  const origenConfigurado = process.env.FRONTEND_URL?.trim();
+
+  if (origenConfigurado) {
+    return origenConfigurado.replace(/\/$/, '');
+  }
+
+  const protocolo = req.get('x-forwarded-proto')?.split(',')[0].trim() || req.protocol;
+  const host = req.get('x-forwarded-host')?.split(',')[0].trim() || req.get('host');
+
+  if (!host) {
+    return 'http://localhost:5173';
+  }
+
+  const origen = new URL(`${protocolo}://${host}`);
+
+  // Cuando se accede directamente al backend durante el desarrollo por LAN,
+  // el frontend de Vite utiliza la misma IP pero el puerto 5173.
+  if (origen.port === String(process.env.PORT || 5000)) {
+    origen.port = '5173';
+  }
+
+  return origen.origin;
+}
+
 export async function generarCarnet(req, res) {
   try {
     const nino = await Nino.findById(req.params.ninoId);
@@ -34,7 +59,7 @@ export async function generarCarnet(req, res) {
       nino.pin = Math.floor(1000 + Math.random() * 9000).toString();
     }
 
-    const urlCarnet = `http://localhost:5173/carnet/${nino.codigoCarnet}`;
+    const urlCarnet = `${obtenerOrigenFrontend(req)}/carnet/${nino.codigoCarnet}`;
     const qrDataUrl = await QRCode.toDataURL(urlCarnet);
 
     nino.codigoQR = urlCarnet;
@@ -68,7 +93,7 @@ export async function enviarCarnetTelegram(req, res) {
       nino.pin = Math.floor(1000 + Math.random() * 9000).toString();
     }
 
-    const urlCarnet = `http://localhost:5173/carnet/${nino.codigoCarnet}`;
+    const urlCarnet = `${obtenerOrigenFrontend(req)}/carnet/${nino.codigoCarnet}`;
     const qrDataUrl = await QRCode.toDataURL(urlCarnet);
 
     nino.codigoQR = urlCarnet;
