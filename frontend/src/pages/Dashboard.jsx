@@ -36,6 +36,9 @@ import {
 } from 'recharts';
 
 const COLORES_MOTIVO = ['#d32f2f', '#ed6c02', '#0288d1', '#2e7d32'];
+const COLORES_SEXO = ['#1976d2', '#ec407a'];
+const COLORES_NUTRICION = ['#d32f2f', '#2e7d32', '#ed6c02', '#b71c1c', '#9e9e9e'];
+const COLORES_VACUNACION = ['#2e7d32', '#d32f2f', '#9e9e9e'];
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -60,6 +63,23 @@ export default function Dashboard() {
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  const datosSexo = [
+    { nombre: 'Niños', cantidad: datos?.porSexo?.ninos ?? 0 },
+    { nombre: 'Niñas', cantidad: datos?.porSexo?.ninas ?? 0 },
+  ];
+  const datosNutricion = [
+    { nombre: 'Desnutrición', cantidad: datos?.estadoNutricional?.desnutricion ?? 0 },
+    { nombre: 'Normal', cantidad: datos?.estadoNutricional?.normal ?? 0 },
+    { nombre: 'Sobrepeso', cantidad: datos?.estadoNutricional?.sobrepeso ?? 0 },
+    { nombre: 'Obesidad', cantidad: datos?.estadoNutricional?.obesidad ?? 0 },
+    { nombre: 'Sin datos', cantidad: datos?.estadoNutricional?.sinDatos ?? 0 },
+  ];
+  const datosVacunacion = [
+    { nombre: 'Al día', cantidad: datos?.coberturaVacunacion?.alDia ?? 0 },
+    { nombre: 'Atrasados', cantidad: datos?.coberturaVacunacion?.atrasados ?? 0 },
+    { nombre: 'Sin esquema', cantidad: datos?.coberturaVacunacion?.sinEsquema ?? 0 },
+  ];
 
   return (
     <Box>
@@ -213,6 +233,80 @@ export default function Dashboard() {
                       </PieChart>
                     </ResponsiveContainer>
                   )}
+                </Paper>
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2} sx={{ mt: 2 }}>
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 2, height: '100%' }}>
+                  <Typography variant="h6" sx={{ mb: 2 }}>
+                    Niños vs Niñas
+                  </Typography>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={datosSexo}
+                        dataKey="cantidad"
+                        nameKey="nombre"
+                        label={({ name, value }) => `${name}: ${value}`}
+                      >
+                        {datosSexo.map((item, index) => (
+                          <Cell key={item.nombre} fill={COLORES_SEXO[index]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 2, height: '100%' }}>
+                  <Typography variant="h6" sx={{ mb: 2 }}>
+                    Estado Nutricional
+                  </Typography>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={datosNutricion}
+                        dataKey="cantidad"
+                        nameKey="nombre"
+                        label={({ name, value }) => `${name}: ${value}`}
+                      >
+                        {datosNutricion.map((item, index) => (
+                          <Cell key={item.nombre} fill={COLORES_NUTRICION[index]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 2, height: '100%' }}>
+                  <Typography variant="h6" sx={{ mb: 2 }}>
+                    Cobertura de Vacunación
+                  </Typography>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={datosVacunacion}
+                        dataKey="cantidad"
+                        nameKey="nombre"
+                        label={({ name, value }) => `${name}: ${value}`}
+                      >
+                        {datosVacunacion.map((item, index) => (
+                          <Cell key={item.nombre} fill={COLORES_VACUNACION[index]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </Paper>
               </Grid>
             </Grid>

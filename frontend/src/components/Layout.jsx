@@ -20,6 +20,7 @@ import {
   useTheme,
 } from '@mui/material';
 import HomeRounded from '@mui/icons-material/HomeRounded';
+import DashboardRounded from '@mui/icons-material/DashboardRounded';
 import LocationCityRounded from '@mui/icons-material/LocationCityRounded';
 import PeopleRounded from '@mui/icons-material/PeopleRounded';
 import ChildCareRounded from '@mui/icons-material/ChildCareRounded';
@@ -39,6 +40,7 @@ const anchoSidebar = 260;
 
 const secciones = [
   { texto: 'Inicio', icono: <HomeRounded />, ruta: '/inicio' },
+  { texto: 'Dashboard', icono: <DashboardRounded />, ruta: '/dashboard' },
   { texto: 'Comunidades', icono: <LocationCityRounded />, ruta: '/comunidades' },
   { texto: 'Padres', icono: <PeopleRounded />, ruta: '/padres' },
   { texto: 'Niños', icono: <ChildCareRounded />, ruta: '/ninos' },
