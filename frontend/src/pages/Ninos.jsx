@@ -45,7 +45,8 @@ import { formatearEdad } from '../utils/edad.js';
 
 export default function Ninos() {
   const { usuario } = useAuth();
-  const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
+  const puedeGestionar = ['admin', 'encargado', 'personal'].includes(usuario?.rol);
+  const puedeEliminar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
   const [ninos, setNinos] = useState([]);
   const [comunidades, setComunidades] = useState([]);
   const [padresLista, setPadresLista] = useState([]);
@@ -435,15 +436,17 @@ export default function Ninos() {
                               <IconButton aria-label="editar" onClick={() => abrirEditar(nino)}>
                                 <EditIcon />
                               </IconButton>
-                              <IconButton
-                                aria-label="eliminar"
-                                color="error"
-                                onClick={() => setEliminacion({ abierto: true, elemento: nino })}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
+                              {puedeEliminar && (
+                                <IconButton
+                                  aria-label="eliminar"
+                                  color="error"
+                                  onClick={() => setEliminacion({ abierto: true, elemento: nino })}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              )}
                               </>
-                            ) : (
+                            ) : puedeEliminar ? (
                               <IconButton
                                 aria-label="reactivar"
                                 color="primary"
@@ -452,6 +455,8 @@ export default function Ninos() {
                               >
                                 <RestoreIcon />
                               </IconButton>
+                            ) : (
+                              '—'
                             ))}
                         </Stack>
                       </TableCell>

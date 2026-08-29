@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -35,6 +35,39 @@ export default function Login() {
   const [nuevaPassword, setNuevaPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
   const [mostrarPassword, setMostrarPassword] = useState(false);
+  const [verificandoInicial, setVerificandoInicial] = useState(true);
+  const [nombreInicial, setNombreInicial] = useState('');
+  const [emailInicial, setEmailInicial] = useState('');
+  const [passwordInicial, setPasswordInicial] = useState('');
+  const [confirmarInicial, setConfirmarInicial] = useState('');
+  const [codigoInicial, setCodigoInicial] = useState('');
+  const [correoInicial, setCorreoInicial] = useState('');
+
+  useEffect(() => {
+    let activo = true;
+
+    async function verificarConfiguracion() {
+      try {
+        const response = await api.get('/auth/estado-inicial');
+        if (!activo) return;
+        if (response.data.requiereConfiguracion) {
+          setVista('configuracion');
+        } else if (response.data.requiereVerificacion) {
+          setCorreoInicial(response.data.correo || 'el correo registrado');
+          setVista('verificarInicial');
+        }
+      } catch {
+        if (activo) setError('No se pudo verificar el estado inicial del sistema');
+      } finally {
+        if (activo) setVerificandoInicial(false);
+      }
+    }
+
+    verificarConfiguracion();
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -107,6 +140,80 @@ export default function Login() {
     setCodigo('');
     setNuevaPassword('');
     setConfirmarPassword('');
+  };
+
+  const crearAdministradorInicial = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMensaje('');
+
+    if (passwordInicial !== confirmarInicial) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    setCargando(true);
+    try {
+      const response = await api.post('/auth/configuracion-inicial', {
+        nombre: nombreInicial,
+        email: emailInicial,
+        password: passwordInicial,
+        confirmarPassword: confirmarInicial,
+      });
+      setCorreoInicial(response.data.correo || emailInicial);
+      setCodigoInicial('');
+      setPasswordInicial('');
+      setConfirmarInicial('');
+      setVista('verificarInicial');
+      setMensaje(response.data.mensaje);
+    } catch (errorCreacion) {
+      const mensajeError =
+        errorCreacion.response?.data?.mensaje || 'No se pudo crear el administrador inicial';
+      setError(mensajeError);
+
+      if (errorCreacion.response?.status === 403 || errorCreacion.response?.status === 409) {
+        setVista('login');
+      }
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const verificarAdministradorInicial = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMensaje('');
+    setCargando(true);
+    try {
+      const response = await api.post('/auth/verificar-configuracion-inicial', {
+        codigo: codigoInicial,
+      });
+      setEmail(response.data.email || emailInicial);
+      setPassword('');
+      setCodigoInicial('');
+      setVista('login');
+      setMensaje(response.data.mensaje);
+    } catch (errorVerificacion) {
+      setError(errorVerificacion.response?.data?.mensaje || 'No se pudo verificar la cuenta');
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const reenviarCodigoInicial = async () => {
+    setError('');
+    setMensaje('');
+    setCargando(true);
+    try {
+      const response = await api.post('/auth/reenviar-configuracion-inicial');
+      setCorreoInicial(response.data.correo || correoInicial);
+      setCodigoInicial('');
+      setMensaje(response.data.mensaje);
+    } catch (errorReenvio) {
+      setError(errorReenvio.response?.data?.mensaje || 'No se pudo reenviar el código');
+    } finally {
+      setCargando(false);
+    }
   };
 
   return (
@@ -263,14 +370,22 @@ export default function Login() {
                 ? 'Bienvenido/a'
                 : vista === 'solicitar'
                   ? 'Recuperar contraseña'
-                  : 'Crear nueva contraseña'}
+                  : vista === 'restablecer'
+                    ? 'Crear nueva contraseña'
+                    : vista === 'verificarInicial'
+                      ? 'Verificar administrador'
+                      : 'Configuración inicial'}
             </Typography>
             <Typography variant="body1" sx={{ color: '#637083', mb: 3 }}>
               {vista === 'login'
                 ? 'Ingrese sus credenciales para acceder al sistema.'
                 : vista === 'solicitar'
                   ? 'Ingrese el correo asociado a su cuenta y le enviaremos un código.'
-                  : `Ingrese el código enviado a ${email} y establezca su nueva contraseña.`}
+                  : vista === 'restablecer'
+                    ? `Ingrese el código enviado a ${email} y establezca su nueva contraseña.`
+                    : vista === 'verificarInicial'
+                      ? `Ingrese el código enviado a ${correoInicial}.`
+                      : 'No existen usuarios. Cree la cuenta del primer administrador para comenzar.'}
             </Typography>
 
             {error && (
@@ -285,7 +400,13 @@ export default function Login() {
               </Alert>
             )}
 
-            {vista === 'login' && (
+            {verificandoInicial && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            )}
+
+            {!verificandoInicial && vista === 'login' && (
               <Box component="form" onSubmit={handleSubmit}>
                 <Stack spacing={2}>
                   <TextField
@@ -359,7 +480,7 @@ export default function Login() {
               </Box>
             )}
 
-            {vista === 'solicitar' && (
+            {!verificandoInicial && vista === 'solicitar' && (
               <Box component="form" onSubmit={solicitarCodigo}>
                 <TextField
                   type="email"
@@ -401,7 +522,7 @@ export default function Login() {
               </Box>
             )}
 
-            {vista === 'restablecer' && (
+            {!verificandoInicial && vista === 'restablecer' && (
               <Box component="form" onSubmit={restablecerPassword}>
                 <Stack spacing={2}>
                   <TextField
@@ -471,6 +592,129 @@ export default function Login() {
                     Volver al ingreso
                   </Button>
                 </Stack>
+              </Box>
+            )}
+
+            {!verificandoInicial && vista === 'configuracion' && (
+              <Box component="form" onSubmit={crearAdministradorInicial}>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Esta opción desaparecerá permanentemente después de crear el primer usuario.
+                </Alert>
+                <Stack spacing={2}>
+                  <TextField
+                    label="Nombre del administrador"
+                    required
+                    autoFocus
+                    fullWidth
+                    value={nombreInicial}
+                    onChange={(e) => setNombreInicial(e.target.value)}
+                  />
+                  <TextField
+                    type="email"
+                    label="Correo electrónico"
+                    required
+                    fullWidth
+                    autoComplete="email"
+                    value={emailInicial}
+                    onChange={(e) => setEmailInicial(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <EmailRoundedIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  <TextField
+                    type={mostrarPassword ? 'text' : 'password'}
+                    label="Contraseña"
+                    required
+                    fullWidth
+                    autoComplete="new-password"
+                    value={passwordInicial}
+                    onChange={(e) => setPasswordInicial(e.target.value)}
+                    helperText="Mínimo 8 caracteres, con mayúscula, minúscula y número."
+                  />
+                  <TextField
+                    type={mostrarPassword ? 'text' : 'password'}
+                    label="Confirmar contraseña"
+                    required
+                    fullWidth
+                    autoComplete="new-password"
+                    value={confirmarInicial}
+                    onChange={(e) => setConfirmarInicial(e.target.value)}
+                    error={confirmarInicial !== '' && confirmarInicial !== passwordInicial}
+                    helperText={
+                      confirmarInicial !== '' && confirmarInicial !== passwordInicial
+                        ? 'Las contraseñas no coinciden'
+                        : 'Repita la contraseña.'
+                    }
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            edge="end"
+                            aria-label={mostrarPassword ? 'Ocultar contraseñas' : 'Mostrar contraseñas'}
+                            onClick={() => setMostrarPassword((visible) => !visible)}
+                          >
+                            {mostrarPassword ? <VisibilityOffRoundedIcon /> : <VisibilityRoundedIcon />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Stack>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  disabled={cargando}
+                  sx={{ mt: 2, minHeight: 50, fontWeight: 800 }}
+                >
+                  {cargando ? (
+                    <CircularProgress size={24} color="inherit" />
+                  ) : (
+                    'Crear administrador e iniciar'
+                  )}
+                </Button>
+              </Box>
+            )}
+
+            {!verificandoInicial && vista === 'verificarInicial' && (
+              <Box component="form" onSubmit={verificarAdministradorInicial}>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  La cuenta permanecerá inactiva hasta confirmar que el correo le pertenece.
+                </Alert>
+                <TextField
+                  label="Código de verificación"
+                  required
+                  autoFocus
+                  fullWidth
+                  value={codigoInicial}
+                  onChange={(e) => setCodigoInicial(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  inputProps={{ inputMode: 'numeric', maxLength: 6 }}
+                  helperText="Código de 6 dígitos. Vence en 10 minutos."
+                />
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  disabled={cargando || codigoInicial.length !== 6}
+                  sx={{ mt: 2, minHeight: 50, fontWeight: 800 }}
+                >
+                  {cargando ? <CircularProgress size={24} color="inherit" /> : 'Verificar correo'}
+                </Button>
+                <Button
+                  type="button"
+                  fullWidth
+                  disabled={cargando}
+                  onClick={reenviarCodigoInicial}
+                  sx={{ mt: 1.5, textTransform: 'none', fontWeight: 700 }}
+                >
+                  Enviar un código nuevo
+                </Button>
               </Box>
             )}
 

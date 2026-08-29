@@ -156,6 +156,33 @@ export async function enviarCodigoRecuperacion(usuario, codigo) {
   return enviarEmail(usuario.email, asunto, contenidoHtml);
 }
 
+export async function enviarCodigoVerificacionInicial(usuario, codigo) {
+  const nombre = escaparHtml(usuario.nombre || 'administrador');
+  const codigoSeguro = escaparHtml(codigo);
+  const asunto = 'Verifique la cuenta administradora de SCCVI';
+  const contenidoHtml = `
+    <div style="font-family: Arial, sans-serif; color: #334155; line-height: 1.6; max-width: 620px; margin: auto;">
+      <h2 style="color: #118AB2;">Verificación del administrador inicial</h2>
+      <p>Hola <strong>${nombre}</strong>:</p>
+      <p>
+        Se solicitó crear la primera cuenta administradora del Sistema de Control de
+        Crecimiento y Vacunación Infantil (SCCVI).
+      </p>
+      <div style="background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <p style="margin: 0 0 8px; color: #64748B;">Código de verificación:</p>
+        <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #118AB2;">${codigoSeguro}</div>
+      </div>
+      <p>El código vence en <strong>10 minutos</strong> y solo puede utilizarse una vez.</p>
+      <p>Si usted no inició esta configuración, no comparta el código.</p>
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #dbeafe; color: #64748b;">
+        Centro de Salud Infantil SCCVI
+      </div>
+    </div>
+  `;
+
+  return enviarEmail(usuario.email, asunto, contenidoHtml);
+}
+
 export async function enviarCampanaEmail(padre, campana) {
   const nombrePadre = escaparHtml(
     padre.nombreCompleto || padre.primerNombre || 'madre, padre o tutor'

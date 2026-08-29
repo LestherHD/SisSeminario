@@ -14,7 +14,7 @@ export async function proteger(req, res, next) {
 
     const usuario = await Usuario.findById(decoded.id).select('-password');
 
-    if (!usuario) {
+    if (!usuario || usuario.activo === false) {
       return res.status(401).json({ mensaje: 'Usuario no encontrado' });
     }
 

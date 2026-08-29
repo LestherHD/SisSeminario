@@ -5,14 +5,35 @@ export async function crear(req, res) {
   try {
     const { nombre, departamento, municipio } = req.body;
 
+    if (!nombre?.trim() || !departamento?.trim() || !municipio?.trim()) {
+      return res.status(400).json({ mensaje: 'Nombre, departamento y municipio son obligatorios' });
+    }
+
+    const existente = await Comunidad.findOne({
+      nombre: nombre.trim(),
+      departamento: departamento.trim(),
+      municipio: municipio.trim(),
+    }).collation({ locale: 'es', strength: 2 });
+
+    if (existente) {
+      return res.status(409).json({
+        mensaje: 'Esta comunidad ya está registrada en el municipio seleccionado',
+      });
+    }
+
     const comunidad = await Comunidad.create({
-      nombre,
-      departamento,
-      municipio,
+      nombre: nombre.trim(),
+      departamento: departamento.trim(),
+      municipio: municipio.trim(),
     });
 
     return res.status(201).json(comunidad);
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        mensaje: 'Esta comunidad ya está registrada en el municipio seleccionado',
+      });
+    }
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
   }
 }
@@ -68,10 +89,28 @@ export async function actualizar(req, res) {
   try {
     const { id } = req.params;
     const { nombre, departamento, municipio } = req.body;
+
+    if (!nombre?.trim() || !departamento?.trim() || !municipio?.trim()) {
+      return res.status(400).json({ mensaje: 'Nombre, departamento y municipio son obligatorios' });
+    }
+
+    const existente = await Comunidad.findOne({
+      _id: { $ne: id },
+      nombre: nombre.trim(),
+      departamento: departamento.trim(),
+      municipio: municipio.trim(),
+    }).collation({ locale: 'es', strength: 2 });
+
+    if (existente) {
+      return res.status(409).json({
+        mensaje: 'Esta comunidad ya está registrada en el municipio seleccionado',
+      });
+    }
+
     const comunidad = await Comunidad.findByIdAndUpdate(id, {
-      nombre,
-      departamento,
-      municipio,
+      nombre: nombre.trim(),
+      departamento: departamento.trim(),
+      municipio: municipio.trim(),
     }, {
       new: true,
       runValidators: true,
@@ -83,6 +122,11 @@ export async function actualizar(req, res) {
 
     return res.status(200).json(comunidad);
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        mensaje: 'Esta comunidad ya está registrada en el municipio seleccionado',
+      });
+    }
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
   }
 }

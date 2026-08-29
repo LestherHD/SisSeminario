@@ -42,7 +42,8 @@ import { departamentos } from '../data/guatemala.js';
 
 export default function Padres() {
   const { usuario } = useAuth();
-  const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
+  const puedeGestionar = ['admin', 'encargado', 'personal'].includes(usuario?.rol);
+  const puedeEliminar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
   const [padres, setPadres] = useState([]);
   const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -373,15 +374,17 @@ export default function Padres() {
                               <IconButton aria-label="editar" onClick={() => abrirEditar(padre)}>
                                 <EditIcon />
                               </IconButton>
-                              <IconButton
-                                aria-label="eliminar"
-                                color="error"
-                                onClick={() => setEliminacion({ abierto: true, elemento: padre })}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
+                              {puedeEliminar && (
+                                <IconButton
+                                  aria-label="eliminar"
+                                  color="error"
+                                  onClick={() => setEliminacion({ abierto: true, elemento: padre })}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              )}
                             </Stack>
-                          ) : (
+                          ) : puedeEliminar ? (
                             <IconButton
                               aria-label="reactivar"
                               color="primary"
@@ -390,6 +393,8 @@ export default function Padres() {
                             >
                               <RestoreIcon />
                             </IconButton>
+                          ) : (
+                            '—'
                           )
                         ) : (
                           '—'

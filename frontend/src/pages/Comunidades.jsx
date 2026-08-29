@@ -39,7 +39,8 @@ import { departamentos } from '../data/guatemala.js';
 
 export default function Comunidades() {
   const { usuario } = useAuth();
-  const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
+  const puedeGestionar = ['admin', 'encargado', 'personal'].includes(usuario?.rol);
+  const puedeEliminar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
   const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -369,15 +370,17 @@ export default function Comunidades() {
                                 <EditIcon />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Borrar comunidad">
-                              <IconButton
-                                aria-label={`Borrar ${comunidad.nombre}`}
-                                color="error"
-                                onClick={() => setEliminacion({ abierto: true, elemento: comunidad })}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
+                            {puedeEliminar && (
+                              <Tooltip title="Borrar comunidad">
+                                <IconButton
+                                  aria-label={`Borrar ${comunidad.nombre}`}
+                                  color="error"
+                                  onClick={() => setEliminacion({ abierto: true, elemento: comunidad })}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
                           </Stack>
                         ) : (
                           '—'

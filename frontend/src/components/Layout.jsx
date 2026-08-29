@@ -29,6 +29,7 @@ import TrendingUpRounded from '@mui/icons-material/TrendingUpRounded';
 import HealthAndSafetyRounded from '@mui/icons-material/HealthAndSafetyRounded';
 import NotificationsActiveRounded from '@mui/icons-material/NotificationsActiveRounded';
 import CampaignRounded from '@mui/icons-material/CampaignRounded';
+import ManageAccountsRounded from '@mui/icons-material/ManageAccountsRounded';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
 import MenuRounded from '@mui/icons-material/MenuRounded';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
@@ -41,15 +42,31 @@ const anchoSidebar = 260;
 
 const secciones = [
   { texto: 'Inicio', icono: <HomeRounded />, ruta: '/inicio' },
-  { texto: 'Dashboard', icono: <DashboardRounded />, ruta: '/dashboard' },
+  {
+    texto: 'Dashboard',
+    icono: <DashboardRounded />,
+    ruta: '/dashboard',
+    roles: ['admin', 'encargado'],
+  },
   { texto: 'Comunidades', icono: <LocationCityRounded />, ruta: '/comunidades' },
   { texto: 'Padres', icono: <PeopleRounded />, ruta: '/padres' },
   { texto: 'Niños', icono: <ChildCareRounded />, ruta: '/ninos' },
-  { texto: 'Vacunas', icono: <VaccinesRounded />, ruta: '/vacunas' },
+  {
+    texto: 'Vacunas',
+    icono: <VaccinesRounded />,
+    ruta: '/vacunas',
+    roles: ['admin', 'encargado'],
+  },
   { texto: 'Crecimiento', icono: <TrendingUpRounded />, ruta: '/crecimiento' },
   { texto: 'Vacunación', icono: <HealthAndSafetyRounded />, ruta: '/vacunacion' },
   { texto: 'Alertas', icono: <NotificationsActiveRounded />, ruta: '/alertas' },
   { texto: 'Campañas', icono: <CampaignRounded />, ruta: '/campanas' },
+  {
+    texto: 'Usuarios',
+    icono: <ManageAccountsRounded />,
+    ruta: '/usuarios',
+    roles: ['admin'],
+  },
 ];
 
 export default function Layout() {
@@ -91,7 +108,9 @@ export default function Layout() {
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
 
       <List sx={{ flexGrow: 1, px: 1, py: 1 }}>
-        {secciones.map((seccion) => {
+        {secciones
+          .filter((seccion) => !seccion.roles || seccion.roles.includes(usuario?.rol))
+          .map((seccion) => {
           const activo = location.pathname === seccion.ruta;
 
           return (
@@ -123,7 +142,7 @@ export default function Layout() {
               </ListItemButton>
             </ListItem>
           );
-        })}
+          })}
       </List>
     </Box>
   );

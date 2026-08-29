@@ -12,7 +12,12 @@ import Crecimiento from './pages/Crecimiento.jsx';
 import Vacunacion from './pages/Vacunacion.jsx';
 import Alertas from './pages/Alertas.jsx';
 import Campanas from './pages/Campanas.jsx';
+import Usuarios from './pages/Usuarios.jsx';
 import { useAuth } from './context/AuthContext.jsx';
+
+function RutaPorRol({ usuario, roles, children }) {
+  return roles.includes(usuario?.rol) ? children : <Navigate to="/inicio" replace />;
+}
 
 function App() {
   const { usuario, cargando } = useAuth();
@@ -32,15 +37,37 @@ function App() {
 
       <Route element={usuario ? <Layout /> : <Navigate to="/login" />}>
         <Route path="/inicio" element={<Inicio />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route
+          path="/dashboard"
+          element={
+            <RutaPorRol usuario={usuario} roles={['admin', 'encargado']}>
+              <Dashboard />
+            </RutaPorRol>
+          }
+        />
         <Route path="/comunidades" element={<Comunidades />} />
         <Route path="/padres" element={<Padres />} />
         <Route path="/ninos" element={<Ninos />} />
-        <Route path="/vacunas" element={<Vacunas />} />
+        <Route
+          path="/vacunas"
+          element={
+            <RutaPorRol usuario={usuario} roles={['admin', 'encargado']}>
+              <Vacunas />
+            </RutaPorRol>
+          }
+        />
         <Route path="/crecimiento" element={<Crecimiento />} />
         <Route path="/vacunacion" element={<Vacunacion />} />
         <Route path="/alertas" element={<Alertas />} />
         <Route path="/campanas" element={<Campanas />} />
+        <Route
+          path="/usuarios"
+          element={
+            <RutaPorRol usuario={usuario} roles={['admin']}>
+              <Usuarios />
+            </RutaPorRol>
+          }
+        />
       </Route>
 
       <Route

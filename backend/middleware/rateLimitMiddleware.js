@@ -37,3 +37,18 @@ export const limitarConsultaCarnet = crearLimitador({
   omitirExitos: true,
   mensaje: 'Demasiados intentos de consulta. Intente nuevamente en 15 minutos.',
 });
+
+export const limitarConfiguracionInicial = crearLimitador({
+  limite: 3,
+  mensaje: 'Demasiados intentos de configuración inicial. Intente nuevamente en 15 minutos.',
+});
+
+export const limitarVerificacionInicial = crearLimitador({
+  limite: 5,
+  mensaje: 'Demasiados intentos de verificación. Solicite un código nuevo más tarde.',
+});
+
+export const limitarReenvioInicial = crearLimitador({
+  limite: 3,
+  mensaje: 'Demasiadas solicitudes de código. Intente nuevamente en 15 minutos.',
+});
