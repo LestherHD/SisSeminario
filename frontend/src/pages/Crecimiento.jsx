@@ -23,13 +23,13 @@ import {
   Stack,
   IconButton,
   Chip,
-  Grid,
   Autocomplete,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import { formatearEdad } from '../utils/edad.js';
+import { etiquetaPercentil, etiquetaPercentilTalla } from '../utils/percentiles.js';
 import {
   LineChart,
   Line,
@@ -40,47 +40,6 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-
-function etiquetaPercentil(percentil) {
-  if (percentil == null) {
-    return { texto: '—', color: 'default' };
-  }
-
-  const valor = Number(percentil);
-
-  if (Number.isNaN(valor)) {
-    return { texto: '—', color: 'default' };
-  }
-
-  if (valor < 5) {
-    return { texto: `${percentil} - Desnutrición`, color: 'error' };
-  }
-
-  if (valor <= 85) {
-    return { texto: `${percentil} - Normal`, color: 'success' };
-  }
-
-  if (valor <= 95) {
-    return { texto: `${percentil} - Sobrepeso`, color: 'warning' };
-  }
-
-  return { texto: `${percentil} - Obesidad`, color: 'error' };
-}
-
-function etiquetaPercentilTalla(percentil) {
-  if (percentil == null || Number.isNaN(Number(percentil))) {
-    return { texto: '—', color: 'default' };
-  }
-
-  const valor = Number(percentil);
-  if (valor < 5) {
-    return { texto: `${percentil} - Talla baja`, color: 'error' };
-  }
-  if (valor <= 95) {
-    return { texto: `${percentil} - Normal`, color: 'success' };
-  }
-  return { texto: `${percentil} - Talla alta`, color: 'info' };
-}
 
 function formatoFechaHoy() {
   return new Date().toISOString().slice(0, 10);
@@ -241,6 +200,17 @@ export default function Crecimiento() {
       valorAnterior: editando?.fecha ? String(editando.fecha).slice(0, 10) : undefined,
     },
   ];
+
+  const datosGrafica = mediciones.map((medicion) => ({
+    ...medicion,
+    fechaGrafica: medicion.fecha
+      ? new Date(medicion.fecha).toLocaleDateString('es-GT', {
+          day: '2-digit',
+          month: 'short',
+          year: '2-digit',
+        })
+      : '-',
+  }));
 
   return (
     <Box>
@@ -436,58 +406,77 @@ export default function Crecimiento() {
             {!cargando && !error && mediciones.length > 0 && (
               <Box sx={{ mt: 4 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
-                  Curvas de crecimiento
+                  Evolución del crecimiento
                 </Typography>
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <Paper sx={{ p: 2, height: '100%' }}>
-                      <Typography variant="subtitle1" sx={{ mb: 2 }}>
-                        Peso vs Edad (meses)
-                      </Typography>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={mediciones}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="edadMeses" label={{ value: 'Edad (meses)', position: 'insideBottom', offset: -5 }} />
-                          <YAxis label={{ value: 'Peso (kg)', angle: -90, position: 'insideLeft' }} />
-                          <Tooltip />
-                          <Legend />
-                          <Line
-                            type="monotone"
-                            dataKey="peso"
-                            stroke="#1976d2"
-                            name="Peso (kg)"
-                            dot
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </Paper>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Paper sx={{ p: 2, height: '100%' }}>
-                      <Typography variant="subtitle1" sx={{ mb: 2 }}>
-                        Talla vs Edad (meses)
-                      </Typography>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={mediciones}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="edadMeses" label={{ value: 'Edad (meses)', position: 'insideBottom', offset: -5 }} />
-                          <YAxis label={{ value: 'Talla (cm)', angle: -90, position: 'insideLeft' }} />
-                          <Tooltip />
-                          <Legend />
-                          <Line
-                            type="monotone"
-                            dataKey="talla"
-                            stroke="#2e7d32"
-                            name="Talla (cm)"
-                            dot
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </Paper>
-                  </Grid>
-                </Grid>
+                <Paper sx={{ p: { xs: 1.5, sm: 2.5 }, width: '100%' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Peso y talla por fecha de control. Pase el cursor sobre un punto para ver
+                    los valores y la edad registrada.
+                  </Typography>
+                  <Box sx={{ width: '100%', minWidth: 0 }}>
+                    <ResponsiveContainer width="100%" height={360}>
+                      <LineChart
+                        data={datosGrafica}
+                        margin={{ top: 10, right: 20, left: 5, bottom: 15 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="fechaGrafica"
+                          tickMargin={10}
+                          label={{ value: 'Fecha de control', position: 'insideBottom', offset: -10 }}
+                        />
+                        <YAxis
+                          yAxisId="peso"
+                          domain={[
+                            (minimo) => Math.max(0, Math.floor(minimo - 1)),
+                            (maximo) => Math.ceil(maximo + 1),
+                          ]}
+                          label={{ value: 'Peso (kg)', angle: -90, position: 'insideLeft' }}
+                        />
+                        <YAxis
+                          yAxisId="talla"
+                          orientation="right"
+                          domain={[
+                            (minimo) => Math.max(0, Math.floor(minimo - 3)),
+                            (maximo) => Math.ceil(maximo + 3),
+                          ]}
+                          label={{ value: 'Talla (cm)', angle: 90, position: 'insideRight' }}
+                        />
+                        <Tooltip
+                          formatter={(valor, nombre) => [
+                            nombre === 'Peso' ? `${valor} kg` : `${valor} cm`,
+                            nombre,
+                          ]}
+                          labelFormatter={(etiqueta, elementos) => {
+                            const edad = elementos?.[0]?.payload?.edadMeses;
+                            return edad == null ? etiqueta : `${etiqueta} · ${edad} meses`;
+                          }}
+                        />
+                        <Legend verticalAlign="top" height={36} />
+                        <Line
+                          yAxisId="peso"
+                          type="monotone"
+                          dataKey="peso"
+                          stroke="#1976d2"
+                          strokeWidth={3}
+                          name="Peso"
+                          dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                          activeDot={{ r: 6 }}
+                        />
+                        <Line
+                          yAxisId="talla"
+                          type="monotone"
+                          dataKey="talla"
+                          stroke="#2e7d32"
+                          strokeWidth={3}
+                          name="Talla"
+                          dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
               </Box>
             )}
           </>

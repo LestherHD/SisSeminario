@@ -35,6 +35,15 @@ import SearchIcon from '@mui/icons-material/Search';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import DialogoEliminar from '../components/DialogoEliminar.jsx';
 
+function rangoEdadValido(valor) {
+  const coincidencia = /^(\d+)-(\d+)$/.exec(valor.trim());
+  return Boolean(coincidencia && Number(coincidencia[1]) <= Number(coincidencia[2]));
+}
+
+function textoUnidadIntervalo(unidad) {
+  return { dias: 'días', semanas: 'semanas', meses: 'meses' }[unidad] || 'meses';
+}
+
 export default function Vacunas() {
   const { usuario } = useAuth();
   const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
@@ -46,13 +55,15 @@ export default function Vacunas() {
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [editando, setEditando] = useState(null);
+  const [errorFormulario, setErrorFormulario] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
   const [eliminando, setEliminando] = useState(false);
   const [form, setForm] = useState({
     nombre: '',
-    edadRecomendada: 0,
-    dosisTotales: 1,
+    rangoEdad: '',
+    dosisMl: '',
+    numeroDosis: 1,
     intervaloValor: 0,
     intervaloUnidad: 'meses',
     descripcion: '',
@@ -81,12 +92,14 @@ export default function Vacunas() {
   const abrirCrear = () => {
     setForm({
       nombre: '',
-      edadRecomendada: 0,
-      dosisTotales: 1,
+      rangoEdad: '',
+      dosisMl: '',
+      numeroDosis: 1,
       intervaloValor: 0,
       intervaloUnidad: 'meses',
       descripcion: '',
     });
+    setErrorFormulario('');
     setEditando(null);
     setDialogoAbierto(true);
   };
@@ -94,21 +107,54 @@ export default function Vacunas() {
   const abrirEditar = (vacuna) => {
     setForm({
       nombre: vacuna.nombre || '',
-      edadRecomendada: vacuna.edadRecomendada ?? 0,
-      dosisTotales: vacuna.dosisTotales ?? 1,
-      intervaloValor: vacuna.intervaloValor ?? 0,
+      rangoEdad:
+        vacuna.rangoEdad ||
+        (vacuna.edadRecomendada != null
+          ? `${vacuna.edadRecomendada}-${vacuna.edadRecomendada}`
+          : ''),
+      dosisMl: vacuna.dosisMl ?? '',
+      numeroDosis: vacuna.numeroDosis ?? vacuna.dosisTotales ?? 1,
+      intervaloValor: vacuna.intervaloValor ?? vacuna.intervaloMeses ?? 0,
       intervaloUnidad: vacuna.intervaloUnidad || 'meses',
       descripcion: vacuna.descripcion || '',
     });
+    setErrorFormulario('');
     setEditando(vacuna);
     setDialogoAbierto(true);
   };
 
   const cerrarDialogo = () => {
     setDialogoAbierto(false);
+    setErrorFormulario('');
   };
 
   const pedirConfirmacion = () => {
+    if (!form.nombre.trim()) {
+      setErrorFormulario('El nombre de la vacuna es obligatorio');
+      return;
+    }
+
+    if (!rangoEdadValido(form.rangoEdad)) {
+      setErrorFormulario('El rango de edad debe tener el formato 0-1, sin letras ni espacios');
+      return;
+    }
+
+    if (form.dosisMl === '' || Number(form.dosisMl) <= 0) {
+      setErrorFormulario('La dosis en ml es obligatoria y debe ser mayor que 0');
+      return;
+    }
+
+    if (Number(form.numeroDosis) < 1) {
+      setErrorFormulario('El número de dosis debe ser al menos 1');
+      return;
+    }
+
+    if (Number(form.numeroDosis) >= 2 && Number(form.intervaloValor) <= 0) {
+      setErrorFormulario('La cantidad del intervalo debe ser mayor que 0');
+      return;
+    }
+
+    setErrorFormulario('');
     setDialogoAbierto(false);
     setConfirmacionAbierta(true);
   };
@@ -119,10 +165,13 @@ export default function Vacunas() {
 
     try {
       const payload = {
-        ...form,
-        edadRecomendada: Number(form.edadRecomendada),
-        dosisTotales: Number(form.dosisTotales),
-        intervaloValor: Number(form.intervaloValor),
+        nombre: form.nombre.trim(),
+        rangoEdad: form.rangoEdad.trim(),
+        dosisMl: form.dosisMl === '' ? null : Number(form.dosisMl),
+        numeroDosis: Number(form.numeroDosis),
+        intervaloValor: Number(form.numeroDosis) <= 1 ? 0 : Number(form.intervaloValor),
+        intervaloUnidad: form.intervaloUnidad,
+        descripcion: form.descripcion.trim(),
       };
 
       if (editando) {
@@ -144,15 +193,33 @@ export default function Vacunas() {
   const camposConfirmacion = [
     { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
     {
-      label: 'Edad recomendada (meses)',
-      valor: form.edadRecomendada,
-      valorAnterior: editando?.edadRecomendada,
+      label: 'Rango de edad',
+      valor: form.rangoEdad || 'No especificado',
+      valorAnterior: editando?.rangoEdad,
     },
-    { label: 'Dosis totales', valor: form.dosisTotales, valorAnterior: editando?.dosisTotales },
     {
-      label: 'Intervalo',
-      valor: `${form.intervaloValor} ${form.intervaloUnidad}`,
-      valorAnterior: editando ? `${editando.intervaloValor} ${editando.intervaloUnidad}` : undefined,
+      label: 'Dosis (ml)',
+      valor: form.dosisMl === '' ? 'No especificada' : `${form.dosisMl} ml`,
+      valorAnterior: editando?.dosisMl != null ? `${editando.dosisMl} ml` : undefined,
+    },
+    {
+      label: 'Número de dosis',
+      valor: form.numeroDosis,
+      valorAnterior: editando?.numeroDosis ?? editando?.dosisTotales,
+    },
+    {
+      label: 'Intervalo entre dosis',
+      valor:
+        Number(form.numeroDosis) <= 1
+          ? 'Dosis única'
+          : `${form.intervaloValor} ${textoUnidadIntervalo(form.intervaloUnidad)}`,
+      valorAnterior: editando
+        ? (editando.numeroDosis ?? editando.dosisTotales ?? 1) <= 1
+          ? 'Dosis única'
+          : `${editando.intervaloValor ?? editando.intervaloMeses ?? 0} ${textoUnidadIntervalo(
+              editando.intervaloUnidad
+            )}`
+        : undefined,
     },
     { label: 'Descripción', valor: form.descripcion, valorAnterior: editando?.descripcion },
   ];
@@ -250,8 +317,9 @@ export default function Vacunas() {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Edad (meses)</TableCell>
-                  <TableCell>Dosis</TableCell>
+                  <TableCell>Rango de edad</TableCell>
+                  <TableCell>Dosis (ml)</TableCell>
+                  <TableCell>N° Dosis</TableCell>
                   <TableCell>Intervalo</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
@@ -262,12 +330,15 @@ export default function Vacunas() {
                   vacunasFiltradas.map((vacuna) => (
                     <TableRow key={vacuna._id}>
                       <TableCell>{vacuna.nombre}</TableCell>
-                      <TableCell>{vacuna.edadRecomendada ?? '-'}</TableCell>
-                      <TableCell>{vacuna.dosisTotales ?? 1}</TableCell>
+                      <TableCell>{vacuna.rangoEdad || '—'}</TableCell>
+                      <TableCell>{vacuna.dosisMl != null ? `${vacuna.dosisMl} ml` : '—'}</TableCell>
+                      <TableCell>{vacuna.numeroDosis ?? 1}</TableCell>
                       <TableCell>
-                        {(vacuna.dosisTotales ?? 1) > 1
-                          ? `${vacuna.intervaloValor ?? 0} ${vacuna.intervaloUnidad ?? 'meses'}`
-                          : '-'}
+                        {(vacuna.numeroDosis ?? 1) > 1
+                          ? `${vacuna.intervaloValor ?? vacuna.intervaloMeses ?? 0} ${textoUnidadIntervalo(
+                              vacuna.intervaloUnidad
+                            )}`
+                          : 'Dosis única'}
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -308,7 +379,7 @@ export default function Vacunas() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={7} align="center">
                       {busquedaVacuna ? 'No se encontraron vacunas' : 'No hay vacunas registradas'}
                     </TableCell>
                   </TableRow>
@@ -324,45 +395,97 @@ export default function Vacunas() {
         <DialogTitle>{editando ? 'Editar Vacuna' : 'Nueva Vacuna'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
+            {errorFormulario && <Alert severity="error">{errorFormulario}</Alert>}
             <TextField
               label="Nombre"
               required
               fullWidth
               value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, nombre: e.target.value });
+                setErrorFormulario('');
+              }}
             />
             <TextField
-              label="Edad recomendada (meses)"
+              label="Rango de edad recomendada"
+              required
+              fullWidth
+              placeholder="ej. 0-1"
+              error={form.rangoEdad !== '' && !rangoEdadValido(form.rangoEdad)}
+              helperText={
+                form.rangoEdad !== '' && !rangoEdadValido(form.rangoEdad)
+                  ? 'Formato incorrecto. Use solamente números y un guion, por ejemplo: 0-1'
+                  : 'Formato obligatorio: 0-1, 1-3, 5-10'
+              }
+              value={form.rangoEdad}
+              onChange={(e) => {
+                setForm({ ...form, rangoEdad: e.target.value });
+                setErrorFormulario('');
+              }}
+            />
+            <TextField
+              label="Dosis (ml)"
               type="number"
               fullWidth
-              value={form.edadRecomendada}
-              onChange={(e) => setForm({ ...form, edadRecomendada: e.target.value })}
+              required
+              value={form.dosisMl}
+              onChange={(e) => {
+                setForm({ ...form, dosisMl: e.target.value });
+                setErrorFormulario('');
+              }}
+              placeholder="ej. 0.5"
+              helperText="Volumen a aplicar en mililitros"
+              inputProps={{ min: 0.01, step: 0.01 }}
+              InputProps={{
+                endAdornment: <InputAdornment position="end">ml</InputAdornment>,
+              }}
             />
             <TextField
               label="Número de dosis"
               type="number"
               fullWidth
-              value={form.dosisTotales}
-              onChange={(e) => setForm({ ...form, dosisTotales: e.target.value })}
+              required
+              value={form.numeroDosis}
+              onChange={(e) => {
+                const numeroDosis = e.target.value;
+                setForm({
+                  ...form,
+                  numeroDosis,
+                  intervaloValor: Number(numeroDosis) <= 1 ? 0 : form.intervaloValor,
+                });
+                setErrorFormulario('');
+              }}
+              inputProps={{ min: 1, step: 1 }}
             />
-            <TextField
-              label="Intervalo entre dosis"
-              type="number"
-              fullWidth
-              value={form.intervaloValor}
-              onChange={(e) => setForm({ ...form, intervaloValor: e.target.value })}
-            />
-            <TextField
-              select
-              label="Unidad del intervalo"
-              fullWidth
-              value={form.intervaloUnidad}
-              onChange={(e) => setForm({ ...form, intervaloUnidad: e.target.value })}
-            >
-              <MenuItem value="dias">Días</MenuItem>
-              <MenuItem value="semanas">Semanas</MenuItem>
-              <MenuItem value="meses">Meses</MenuItem>
-            </TextField>
+            {Number(form.numeroDosis) >= 2 && (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <TextField
+                  select
+                  label="Unidad del intervalo"
+                  fullWidth
+                  value={form.intervaloUnidad}
+                  onChange={(e) => setForm({ ...form, intervaloUnidad: e.target.value })}
+                  helperText="Seleccione días, semanas o meses"
+                >
+                  <MenuItem value="dias">Días</MenuItem>
+                  <MenuItem value="semanas">Semanas</MenuItem>
+                  <MenuItem value="meses">Meses</MenuItem>
+                </TextField>
+                <TextField
+                  label="Cantidad del intervalo"
+                  type="number"
+                  fullWidth
+                  required
+                  value={form.intervaloValor}
+                  onChange={(e) => {
+                    setForm({ ...form, intervaloValor: e.target.value });
+                    setErrorFormulario('');
+                  }}
+                  helperText={`Cantidad de ${textoUnidadIntervalo(form.intervaloUnidad)}`}
+                  inputProps={{ min: 1, step: 1 }}
+                />
+              </Stack>
+            )}
             <TextField
               label="Descripción"
               fullWidth

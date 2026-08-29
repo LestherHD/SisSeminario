@@ -2,6 +2,7 @@ import QRCode from 'qrcode';
 import Nino from '../models/Nino.js';
 import Vacunacion from '../models/Vacunacion.js';
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
+import Alerta from '../models/Alerta.js';
 import { enviarMensajeTelegram, enviarFotoTelegram } from '../services/telegramService.js';
 
 async function generarCodigoUnico() {
@@ -103,14 +104,90 @@ export async function enviarCarnetTelegram(req, res) {
   }
 }
 
+export async function armarExpediente(ninoId) {
+  const nino = await Nino.findOne({ _id: ninoId, activo: true })
+    .populate('comunidad', 'nombre departamento municipio')
+    .populate('padres', 'nombreCompleto')
+    .lean();
+
+  if (!nino) {
+    return null;
+  }
+
+  const [vacunaciones, crecimiento, alertasActivas] = await Promise.all([
+    Vacunacion.find({ nino: ninoId, activo: true })
+      .populate('vacuna', 'nombre numeroDosis dosisTotales')
+      .sort({ fechaAplicada: 1 })
+      .lean(),
+    RegistroCrecimiento.find({ nino: ninoId, activo: true })
+      .sort({ fecha: -1 })
+      .lean(),
+    Alerta.find({ nino: ninoId, activo: true, atendida: false })
+      .sort({ fecha: -1 })
+      .select('tipo motivo mensaje fecha')
+      .lean(),
+  ]);
+
+  const vacunasAgrupadas = new Map();
+
+  for (const aplicacion of vacunaciones) {
+    if (!aplicacion.vacuna?._id) continue;
+
+    const clave = aplicacion.vacuna._id.toString();
+    const grupo = vacunasAgrupadas.get(clave) || {
+      vacuna: aplicacion.vacuna.nombre,
+      nombre: aplicacion.vacuna.nombre,
+      dosisAplicadas: 0,
+      totalEsquema: aplicacion.vacuna.numeroDosis ?? aplicacion.vacuna.dosisTotales ?? 1,
+      proximaDosis: null,
+      fechas: [],
+    };
+
+    grupo.dosisAplicadas += 1;
+    grupo.fechas.push(aplicacion.fechaAplicada);
+    grupo.proximaDosis = aplicacion.proximaDosis || grupo.proximaDosis;
+    vacunasAgrupadas.set(clave, grupo);
+  }
+
+  const vacunas = Array.from(vacunasAgrupadas.values()).map((vacuna) => ({
+    ...vacuna,
+    estado: vacuna.dosisAplicadas >= vacuna.totalEsquema ? 'Completa' : 'En progreso',
+    proximaDosis:
+      vacuna.dosisAplicadas >= vacuna.totalEsquema ? null : vacuna.proximaDosis,
+  }));
+
+  const padres = (nino.padres || []).map((padre) => padre.nombreCompleto).filter(Boolean);
+
+  return {
+    nino: {
+      _id: nino._id,
+      nombreCompleto: nino.nombreCompleto,
+      fechaNacimiento: nino.fechaNacimiento,
+      sexo: nino.sexo,
+      comunidad: nino.comunidad?.nombre || 'Sin comunidad',
+      padres,
+    },
+    padres,
+    vacunas,
+    crecimiento: crecimiento.map((registro) => ({
+      _id: registro._id,
+      fecha: registro.fecha,
+      peso: registro.peso,
+      talla: registro.talla,
+      edadMeses: registro.edadMeses,
+      percentilPeso: registro.percentilPeso,
+      percentilTalla: registro.percentilTalla,
+    })),
+    alertasActivas,
+  };
+}
+
 export async function verCarnetPublico(req, res) {
   try {
     const { codigo } = req.params;
     const { pin } = req.body;
 
-    const nino = await Nino.findOne({ codigoCarnet: codigo, activo: true })
-      .populate('comunidad', 'nombre')
-      .populate('padres', 'nombreCompleto');
+    const nino = await Nino.findOne({ codigoCarnet: codigo, activo: true }).select('_id pin');
 
     if (!nino) {
       return res.status(404).json({ mensaje: 'Carnet no encontrado' });
@@ -120,36 +197,22 @@ export async function verCarnetPublico(req, res) {
       return res.status(401).json({ mensaje: 'PIN incorrecto' });
     }
 
-    const vacunacionesRaw = await Vacunacion.find({ nino: nino._id, activo: true }).populate('vacuna', 'nombre');
-    const vacunas = vacunacionesRaw.map((v) => ({
-      vacuna: v.vacuna?.nombre,
-      numeroDosis: v.numeroDosis,
-      fechaAplicada: v.fechaAplicada,
-    }));
+    const expediente = await armarExpediente(nino._id);
+    return res.status(200).json(expediente);
+  } catch (error) {
+    return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
+  }
+}
 
-    const crecimientoRaw = await RegistroCrecimiento.find({ nino: nino._id, activo: true })
-      .sort({ fecha: -1 })
-      .limit(5);
-    const crecimiento = crecimientoRaw.map((c) => ({
-      fecha: c.fecha,
-      peso: c.peso,
-      talla: c.talla,
-      edadMeses: c.edadMeses,
-      percentilPeso: c.percentilPeso,
-      percentilTalla: c.percentilTalla,
-    }));
+export async function verExpedienteInterno(req, res) {
+  try {
+    const expediente = await armarExpediente(req.params.ninoId);
 
-    return res.status(200).json({
-      nino: {
-        nombreCompleto: nino.nombreCompleto,
-        fechaNacimiento: nino.fechaNacimiento,
-        sexo: nino.sexo,
-        comunidad: nino.comunidad?.nombre,
-        padres: (nino.padres || []).map((padre) => padre.nombreCompleto).filter(Boolean),
-      },
-      vacunas,
-      crecimiento,
-    });
+    if (!expediente) {
+      return res.status(404).json({ mensaje: 'Niño no encontrado' });
+    }
+
+    return res.status(200).json(expediente);
   } catch (error) {
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
   }

@@ -5,8 +5,28 @@ import Vacunacion from '../models/Vacunacion.js';
 import Alerta from '../models/Alerta.js';
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
 
+function obtenerFechaInicio(periodo) {
+  const hoy = new Date();
+
+  if (periodo === 'mes') {
+    return new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  }
+  if (periodo === '3meses') {
+    return new Date(hoy.getFullYear(), hoy.getMonth() - 2, 1);
+  }
+  if (periodo === '6meses') {
+    return new Date(hoy.getFullYear(), hoy.getMonth() - 5, 1);
+  }
+
+  return null;
+}
+
 export async function obtenerEstadisticas(req, res) {
   try {
+    const periodo = ['mes', '3meses', '6meses', 'todo'].includes(req.query.periodo)
+      ? req.query.periodo
+      : 'mes';
+    const fechaInicio = obtenerFechaInicio(periodo);
     const ninosActivos = await Nino.find({ activo: true }).select('_id sexo').lean();
 
     const totales = {
@@ -79,6 +99,26 @@ export async function obtenerEstadisticas(req, res) {
       })
     );
 
+    totales.ninosVacunados = coberturaVacunacion.alDia + coberturaVacunacion.atrasados;
+    totales.coberturaVacunacion = totales.ninos
+      ? Math.round((totales.ninosVacunados / totales.ninos) * 100)
+      : 0;
+
+    const filtroFechaVacunacion = fechaInicio ? { fechaAplicada: { $gte: fechaInicio } } : {};
+    const filtroFechaAlertas = fechaInicio ? { fecha: { $gte: fechaInicio } } : {};
+    const actividadPeriodo = {
+      periodo,
+      fechaInicio,
+      dosisAplicadas: await Vacunacion.countDocuments({
+        activo: true,
+        ...filtroFechaVacunacion,
+      }),
+      alertasGeneradas: await Alerta.countDocuments({
+        activo: true,
+        ...filtroFechaAlertas,
+      }),
+    };
+
     const ninosPorComunidad = await Nino.aggregate([
       { $match: { activo: true } },
       { $group: { _id: '$comunidad', cantidad: { $sum: 1 } } },
@@ -97,6 +137,42 @@ export async function obtenerEstadisticas(req, res) {
           cantidad: 1,
         },
       },
+    ]);
+
+    const ninosPorUbicacion = await Nino.aggregate([
+      { $match: { activo: true } },
+      {
+        $lookup: {
+          from: 'comunidads',
+          localField: 'comunidad',
+          foreignField: '_id',
+          as: 'comunidadInfo',
+        },
+      },
+      { $unwind: '$comunidadInfo' },
+      { $match: { 'comunidadInfo.activo': true } },
+      {
+        $group: {
+          _id: {
+            comunidadId: '$comunidadInfo._id',
+            comunidad: '$comunidadInfo.nombre',
+            municipio: '$comunidadInfo.municipio',
+            departamento: '$comunidadInfo.departamento',
+          },
+          cantidad: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          comunidadId: '$_id.comunidadId',
+          comunidad: '$_id.comunidad',
+          municipio: '$_id.municipio',
+          departamento: '$_id.departamento',
+          cantidad: 1,
+        },
+      },
+      { $sort: { departamento: 1, municipio: 1, comunidad: 1 } },
     ]);
 
     const alertasPorTipo = await Alerta.aggregate([
@@ -134,6 +210,8 @@ export async function obtenerEstadisticas(req, res) {
       porSexo,
       estadoNutricional,
       coberturaVacunacion,
+      actividadPeriodo,
+      ninosPorUbicacion,
     });
   } catch (error) {
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });

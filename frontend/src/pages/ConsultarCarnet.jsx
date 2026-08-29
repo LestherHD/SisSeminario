@@ -9,14 +9,6 @@ import {
   Typography,
   Alert,
   CircularProgress,
-  Divider,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
   Stack,
   IconButton,
   Tooltip,
@@ -27,29 +19,7 @@ import {
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import PrintIcon from '@mui/icons-material/Print';
-
-function etiquetaPercentil(percentil) {
-  if (percentil == null || Number.isNaN(Number(percentil))) {
-    return { texto: '—', color: 'default' };
-  }
-
-  const valor = Number(percentil);
-  if (valor < 5) return { texto: `${percentil} - Desnutrición`, color: 'error' };
-  if (valor <= 85) return { texto: `${percentil} - Normal`, color: 'success' };
-  if (valor <= 95) return { texto: `${percentil} - Sobrepeso`, color: 'warning' };
-  return { texto: `${percentil} - Obesidad`, color: 'error' };
-}
-
-function etiquetaPercentilTalla(percentil) {
-  if (percentil == null || Number.isNaN(Number(percentil))) {
-    return { texto: '—', color: 'default' };
-  }
-
-  const valor = Number(percentil);
-  if (valor < 5) return { texto: `${percentil} - Talla baja`, color: 'error' };
-  if (valor <= 95) return { texto: `${percentil} - Normal`, color: 'success' };
-  return { texto: `${percentil} - Talla alta`, color: 'info' };
-}
+import Expediente from '../components/Expediente.jsx';
 
 export default function ConsultarCarnet() {
   const navigate = useNavigate();
@@ -60,8 +30,6 @@ export default function ConsultarCarnet() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [informacionAbierta, setInformacionAbierta] = useState(false);
-
-  const formatearFecha = (fecha) => new Date(fecha).toLocaleDateString('es-GT');
 
   const consultar = async () => {
     if (!codigo.trim() || !pin.trim()) {
@@ -116,7 +84,7 @@ export default function ConsultarCarnet() {
         sx={{
           p: 4,
           width: '100%',
-          maxWidth: carnet ? 900 : 500,
+          maxWidth: carnet ? 1200 : 500,
           '@media print': { boxShadow: 'none', maxWidth: 'none', p: 1 },
         }}
       >
@@ -169,142 +137,49 @@ export default function ConsultarCarnet() {
 
         {carnet && (
           <Box>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              {carnet.nino?.nombreCompleto}
-            </Typography>
-
-            <Stack spacing={0.5} sx={{ mb: 3 }}>
-              <Typography variant="body2">
-                <b>Sexo:</b> {carnet.nino?.sexo}
-              </Typography>
-              <Typography variant="body2">
-                <b>Fecha de nacimiento:</b>{' '}
-                {carnet.nino?.fechaNacimiento ? formatearFecha(carnet.nino.fechaNacimiento) : '-'}
-              </Typography>
-              <Typography variant="body2">
-                <b>Comunidad:</b> {carnet.nino?.comunidad}
-              </Typography>
-              <Typography variant="body2">
-                <b>Padres/Tutores:</b>{' '}
-                {carnet.nino?.padres?.length > 0
-                  ? carnet.nino.padres.join(', ')
-                  : 'No registrados'}
-              </Typography>
-            </Stack>
-
-            <Divider sx={{ mb: 2 }} />
-
-            <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Vacunas
-            </Typography>
-
-            {carnet.vacunas?.length > 0 ? (
-              <TableContainer sx={{ mb: 3 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Vacuna</TableCell>
-                      <TableCell>Dosis N°</TableCell>
-                      <TableCell>Fecha</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {carnet.vacunas.map((v, i) => (
-                      <TableRow key={i}>
-                        <TableCell>{v.vacuna}</TableCell>
-                        <TableCell>{v.numeroDosis}</TableCell>
-                        <TableCell>{formatearFecha(v.fechaAplicada)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Sin vacunas registradas
-              </Typography>
-            )}
-
-            <Divider sx={{ mb: 2 }} />
-
-            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 1 }}>
-              <Typography variant="subtitle1">Crecimiento</Typography>
-              <Tooltip title="¿Qué significan los percentiles?">
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label="Información sobre percentiles"
-                  onClick={() => setInformacionAbierta(true)}
-                  sx={{ displayPrint: 'none' }}
-                >
-                  <InfoOutlinedIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-
-            {carnet.crecimiento?.length > 0 ? (
-              <TableContainer sx={{ mb: 3 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Fecha</TableCell>
-                      <TableCell>Peso (kg)</TableCell>
-                      <TableCell>Talla (cm)</TableCell>
-                      <TableCell>Percentil de peso</TableCell>
-                      <TableCell>Percentil de talla</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {carnet.crecimiento.map((c, i) => {
-                      const percentilPeso = etiquetaPercentil(c.percentilPeso);
-                      const percentilTalla = etiquetaPercentilTalla(c.percentilTalla);
-
-                      return (
-                      <TableRow key={i}>
-                        <TableCell>{formatearFecha(c.fecha)}</TableCell>
-                        <TableCell>{c.peso}</TableCell>
-                        <TableCell>{c.talla}</TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            color={percentilPeso.color}
-                            label={percentilPeso.texto}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            color={percentilTalla.color}
-                            label={percentilTalla.texto}
-                          />
-                        </TableCell>
-                      </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Sin registros
-              </Typography>
-            )}
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ displayPrint: 'none' }}>
-              <Button
-                variant="contained"
-                startIcon={<PrintIcon />}
-                fullWidth
-                onClick={() => window.print()}
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              justifyContent="space-between"
+              alignItems={{ xs: 'flex-start', sm: 'center' }}
+              gap={2}
+              sx={{ mb: 3 }}
+            >
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  Expediente de salud
+                </Typography>
+                <Tooltip title="¿Qué significan los percentiles?">
+                  <IconButton
+                    color="primary"
+                    aria-label="Información sobre percentiles"
+                    onClick={() => setInformacionAbierta(true)}
+                    sx={{ displayPrint: 'none' }}
+                  >
+                    <InfoOutlinedIcon />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                sx={{ displayPrint: 'none' }}
               >
-                Imprimir carnet
-              </Button>
-              <Button variant="outlined" fullWidth onClick={consultarOtro}>
-                Consultar otro carnet
-              </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<PrintIcon />}
+                  onClick={() => window.print()}
+                >
+                  Imprimir carnet
+                </Button>
+                <Button variant="outlined" onClick={consultarOtro}>
+                  Consultar otro carnet
+                </Button>
+              </Stack>
             </Stack>
+            <Expediente {...carnet} />
           </Box>
         )}
+
       </Paper>
 
       <Dialog

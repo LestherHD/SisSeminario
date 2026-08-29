@@ -7,7 +7,7 @@ export async function registrar(req, res) {
   try {
     const { nino, vacuna, fechaAplicada } = req.body;
 
-    const vacunaCatalogo = await Vacuna.findById(vacuna);
+    const vacunaCatalogo = await Vacuna.findById(vacuna).lean();
 
     if (!vacunaCatalogo) {
       return res.status(404).json({ mensaje: 'Vacuna no encontrada' });
@@ -15,21 +15,27 @@ export async function registrar(req, res) {
 
     const aplicadas = await Vacunacion.countDocuments({ nino, vacuna, activo: true });
     const numeroDosis = aplicadas + 1;
+    const dosisDelEsquema = vacunaCatalogo.numeroDosis ?? vacunaCatalogo.dosisTotales ?? 1;
 
-    if (numeroDosis > vacunaCatalogo.dosisTotales) {
+    if (numeroDosis > dosisDelEsquema) {
       return res
         .status(400)
-        .json({ mensaje: `El esquema ya está completo (${aplicadas} de ${vacunaCatalogo.dosisTotales} dosis)` });
+        .json({ mensaje: `El esquema ya está completo (${aplicadas} de ${dosisDelEsquema} dosis)` });
     }
 
-    const proximaDosis =
-      numeroDosis < vacunaCatalogo.dosisTotales
-        ? calcularProximaDosis(
-            fechaAplicada,
-            vacunaCatalogo.intervaloValor,
-            vacunaCatalogo.intervaloUnidad
-          )
-        : null;
+    let proximaDosis = null;
+
+    if (numeroDosis < dosisDelEsquema) {
+      if (vacunaCatalogo.intervaloValor > 0) {
+        proximaDosis = calcularProximaDosis(
+          fechaAplicada,
+          vacunaCatalogo.intervaloValor,
+          vacunaCatalogo.intervaloUnidad
+        );
+      } else if (vacunaCatalogo.intervaloMeses > 0) {
+        proximaDosis = calcularProximaDosis(fechaAplicada, vacunaCatalogo.intervaloMeses);
+      }
+    }
 
     const registro = await Vacunacion.create({
       nino,
@@ -47,7 +53,7 @@ export async function registrar(req, res) {
 
     return res.status(201).json({
       registro,
-      mensaje: `Dosis ${numeroDosis} de ${vacunaCatalogo.dosisTotales} registrada`,
+      mensaje: `Dosis ${numeroDosis} de ${dosisDelEsquema} registrada`,
     });
   } catch (error) {
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
@@ -60,7 +66,7 @@ export async function resumenPorNino(req, res) {
       nino: req.params.ninoId,
       activo: true,
     })
-      .populate('vacuna', 'nombre dosisTotales')
+      .populate('vacuna', 'nombre numeroDosis dosisTotales')
       .sort({ fechaAplicada: 1 });
 
     const hoy = new Date();
@@ -85,7 +91,7 @@ export async function resumenPorNino(req, res) {
       const ultima = ordenado[ordenado.length - 1];
       const vacuna = ultima.vacuna;
       const dosisAplicadas = grupo.length;
-      const dosisTotales = vacuna?.dosisTotales ?? 1;
+      const dosisTotales = vacuna?.numeroDosis ?? vacuna?.dosisTotales ?? 1;
       const proximaDosis = ultima.proximaDosis || null;
       let estado = 'al_dia';
 

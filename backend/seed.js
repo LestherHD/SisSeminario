@@ -33,8 +33,11 @@ async function run() {
     console.log('✅ Creando vacuna de catálogo...');
     const vacuna = await Vacuna.create({
       nombre: 'BCG',
-      edadRecomendada: 0,
-      dosis: 'Única',
+      rangoEdad: '0-1',
+      dosisMl: 0.1,
+      numeroDosis: 1,
+      intervaloValor: 0,
+      intervaloUnidad: 'meses',
     });
     console.log('✅ Vacuna creada:', vacuna._id.toString());
 

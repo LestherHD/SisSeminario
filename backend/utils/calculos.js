@@ -11,21 +11,18 @@ export function calcularEdadMeses(fechaNacimiento, fechaMedicion) {
   return Math.max(0, meses);
 }
 
-export function calcularProximaDosis(fechaAplicada, intervaloValor, intervaloUnidad) {
+export function calcularProximaDosis(fechaAplicada, intervalo, unidad = 'meses') {
   const proximaFecha = new Date(fechaAplicada);
-  const valor = Number(intervaloValor) || 0;
+  const valor = Number(intervalo) || 0;
 
-  if (intervaloUnidad === 'dias') {
+  if (unidad === 'dias') {
     proximaFecha.setDate(proximaFecha.getDate() + valor);
-    return proximaFecha;
-  }
-
-  if (intervaloUnidad === 'semanas') {
+  } else if (unidad === 'semanas') {
     proximaFecha.setDate(proximaFecha.getDate() + valor * 7);
-    return proximaFecha;
+  } else {
+    proximaFecha.setMonth(proximaFecha.getMonth() + valor);
   }
 
-  proximaFecha.setMonth(proximaFecha.getMonth() + valor);
   return proximaFecha;
 }
 

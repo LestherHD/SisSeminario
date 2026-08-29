@@ -36,8 +36,11 @@ import RestoreIcon from '@mui/icons-material/Restore';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
+import DescriptionIcon from '@mui/icons-material/Description';
+import PrintIcon from '@mui/icons-material/Print';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import DialogoEliminar from '../components/DialogoEliminar.jsx';
+import Expediente from '../components/Expediente.jsx';
 import { formatearEdad } from '../utils/edad.js';
 
 export default function Ninos() {
@@ -63,6 +66,11 @@ export default function Ninos() {
   const [generandoCarnet, setGenerandoCarnet] = useState(false);
   const [enviandoCarnet, setEnviandoCarnet] = useState(false);
   const [mensajeCarnet, setMensajeCarnet] = useState('');
+  const [expedienteAbierto, setExpedienteAbierto] = useState(false);
+  const [expedienteData, setExpedienteData] = useState(null);
+  const [expedienteNino, setExpedienteNino] = useState(null);
+  const [cargandoExpediente, setCargandoExpediente] = useState(false);
+  const [errorExpediente, setErrorExpediente] = useState('');
   const [form, setForm] = useState({
     primerNombre: '',
     segundoNombre: '',
@@ -270,6 +278,30 @@ export default function Ninos() {
     window.print();
   };
 
+  const abrirExpediente = async (nino) => {
+    setExpedienteAbierto(true);
+    setExpedienteNino(nino);
+    setExpedienteData(null);
+    setErrorExpediente('');
+    setCargandoExpediente(true);
+
+    try {
+      const response = await api.get(`/carnet/expediente/${nino._id}`);
+      setExpedienteData(response.data);
+    } catch (error) {
+      setErrorExpediente(error.response?.data?.mensaje || 'Error al cargar el expediente');
+    } finally {
+      setCargandoExpediente(false);
+    }
+  };
+
+  const cerrarExpediente = () => {
+    setExpedienteAbierto(false);
+    setExpedienteData(null);
+    setExpedienteNino(null);
+    setErrorExpediente('');
+  };
+
   const padresSeleccionados = padresLista.filter((padre) => form.padres.includes(padre._id));
   const ninosFiltrados = ninos.filter((nino) =>
     nino.nombreCompleto?.toLowerCase().includes(busquedaNino.trim().toLowerCase())
@@ -367,9 +399,22 @@ export default function Ninos() {
                         />
                       </TableCell>
                       <TableCell>
-                        {puedeGestionar ? (
-                          nino.activo ? (
-                            <Stack direction="row" spacing={1}>
+                        <Stack direction="row" spacing={1}>
+                          <Tooltip title="Ver expediente">
+                            <span>
+                              <IconButton
+                                aria-label="ver expediente"
+                                color="info"
+                                disabled={!nino.activo}
+                                onClick={() => abrirExpediente(nino)}
+                              >
+                                <DescriptionIcon />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          {puedeGestionar &&
+                            (nino.activo ? (
+                              <>
                               <Tooltip title="Carnet QR">
                                 <IconButton
                                   aria-label="carnet qr"
@@ -389,20 +434,18 @@ export default function Ninos() {
                               >
                                 <DeleteIcon />
                               </IconButton>
-                            </Stack>
-                          ) : (
-                            <IconButton
-                              aria-label="reactivar"
-                              color="primary"
-                              title="Reactivar"
-                              onClick={() => reactivar(nino._id)}
-                            >
-                              <RestoreIcon />
-                            </IconButton>
-                          )
-                        ) : (
-                          '—'
-                        )}
+                              </>
+                            ) : (
+                              <IconButton
+                                aria-label="reactivar"
+                                color="primary"
+                                title="Reactivar"
+                                onClick={() => reactivar(nino._id)}
+                              >
+                                <RestoreIcon />
+                              </IconButton>
+                            ))}
+                        </Stack>
                       </TableCell>
                     </TableRow>
                   ))
@@ -624,6 +667,31 @@ export default function Ninos() {
             {enviandoCarnet ? <CircularProgress size={20} /> : 'Enviar por Telegram'}
           </Button>
           <Button onClick={cerrarCarnet}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={expedienteAbierto} onClose={cerrarExpediente} fullWidth maxWidth="lg">
+        <DialogTitle>
+          Expediente{expedienteNino?.nombreCompleto ? ` - ${expedienteNino.nombreCompleto}` : ''}
+        </DialogTitle>
+        <DialogContent dividers>
+          {cargandoExpediente && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress />
+            </Box>
+          )}
+          {errorExpediente && <Alert severity="error">{errorExpediente}</Alert>}
+          {!cargandoExpediente && expedienteData && <Expediente {...expedienteData} />}
+        </DialogContent>
+        <DialogActions sx={{ displayPrint: 'none' }}>
+          <Button
+            startIcon={<PrintIcon />}
+            onClick={() => window.print()}
+            disabled={!expedienteData}
+          >
+            Imprimir
+          </Button>
+          <Button variant="contained" onClick={cerrarExpediente}>Cerrar</Button>
         </DialogActions>
       </Dialog>
     </Box>
