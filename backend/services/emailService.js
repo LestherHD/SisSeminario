@@ -155,3 +155,40 @@ export async function enviarCodigoRecuperacion(usuario, codigo) {
 
   return enviarEmail(usuario.email, asunto, contenidoHtml);
 }
+
+export async function enviarCampanaEmail(padre, campana) {
+  const nombrePadre = escaparHtml(
+    padre.nombreCompleto || padre.primerNombre || 'madre, padre o tutor'
+  );
+  const nombreCampana = escaparHtml(campana.nombre);
+  const descripcion = escaparHtml(campana.descripcion).replaceAll('\n', '<br>');
+  const comunidad = campana.comunidad?.nombre
+    ? `${campana.comunidad.nombre}, ${campana.municipio}, ${campana.departamento}`
+    : campana.municipio
+      ? `${campana.municipio}, ${campana.departamento}`
+      : campana.departamento;
+  const lugar = escaparHtml(comunidad);
+  const fecha = new Intl.DateTimeFormat('es-GT', {
+    timeZone: 'America/Guatemala',
+    dateStyle: 'long',
+  }).format(new Date(campana.fechaRealizacion));
+  const asunto = `Campaña comunitaria: ${campana.nombre}`;
+  const contenidoHtml = `
+    <div style="font-family: Arial, sans-serif; color: #334155; line-height: 1.6; max-width: 620px; margin: auto;">
+      <h2 style="color: #118AB2;">${nombreCampana}</h2>
+      <p>Estimado/a <strong>${nombrePadre}</strong>:</p>
+      <p>El Centro de Salud Infantil SCCVI le invita a participar en la siguiente campaña comunitaria:</p>
+      <div style="background: #F0F9FF; border-left: 4px solid #118AB2; padding: 16px; margin: 18px 0;">
+        <p style="margin: 0 0 8px;"><strong>Fecha:</strong> ${fecha}</p>
+        <p style="margin: 0 0 8px;"><strong>Lugar:</strong> ${lugar}</p>
+        <p style="margin: 0;">${descripcion}</p>
+      </div>
+      <p>Le esperamos. Para más información, comuníquese con el personal del centro de salud.</p>
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #dbeafe; color: #64748b;">
+        Centro de Salud Infantil SCCVI
+      </div>
+    </div>
+  `;
+
+  return enviarEmail(padre.email, asunto, contenidoHtml);
+}

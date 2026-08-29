@@ -11,6 +11,7 @@ import Vacunas from './pages/Vacunas.jsx';
 import Crecimiento from './pages/Crecimiento.jsx';
 import Vacunacion from './pages/Vacunacion.jsx';
 import Alertas from './pages/Alertas.jsx';
+import Campanas from './pages/Campanas.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
         <Route path="/crecimiento" element={<Crecimiento />} />
         <Route path="/vacunacion" element={<Vacunacion />} />
         <Route path="/alertas" element={<Alertas />} />
+        <Route path="/campanas" element={<Campanas />} />
       </Route>
 
       <Route

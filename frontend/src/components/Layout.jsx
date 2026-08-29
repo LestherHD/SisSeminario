@@ -28,6 +28,7 @@ import VaccinesRounded from '@mui/icons-material/VaccinesRounded';
 import TrendingUpRounded from '@mui/icons-material/TrendingUpRounded';
 import HealthAndSafetyRounded from '@mui/icons-material/HealthAndSafetyRounded';
 import NotificationsActiveRounded from '@mui/icons-material/NotificationsActiveRounded';
+import CampaignRounded from '@mui/icons-material/CampaignRounded';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
 import MenuRounded from '@mui/icons-material/MenuRounded';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
@@ -48,6 +49,7 @@ const secciones = [
   { texto: 'Crecimiento', icono: <TrendingUpRounded />, ruta: '/crecimiento' },
   { texto: 'Vacunación', icono: <HealthAndSafetyRounded />, ruta: '/vacunacion' },
   { texto: 'Alertas', icono: <NotificationsActiveRounded />, ruta: '/alertas' },
+  { texto: 'Campañas', icono: <CampaignRounded />, ruta: '/campanas' },
 ];
 
 export default function Layout() {
