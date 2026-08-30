@@ -110,7 +110,7 @@ export default function Layout() {
           SCCVI
         </Typography>
         <Typography variant="caption" sx={{ color: '#fff', opacity: 0.8 }}>
-          Centro de Salud Infantil
+          Control de Crecimiento y Vacunación
         </Typography>
       </Box>
 
