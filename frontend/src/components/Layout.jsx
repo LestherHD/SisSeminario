@@ -30,6 +30,7 @@ import HealthAndSafetyRounded from '@mui/icons-material/HealthAndSafetyRounded';
 import NotificationsActiveRounded from '@mui/icons-material/NotificationsActiveRounded';
 import CampaignRounded from '@mui/icons-material/CampaignRounded';
 import ManageAccountsRounded from '@mui/icons-material/ManageAccountsRounded';
+import AssessmentRounded from '@mui/icons-material/AssessmentRounded';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
 import MenuRounded from '@mui/icons-material/MenuRounded';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
@@ -61,6 +62,12 @@ const secciones = [
   { texto: 'Vacunación', icono: <HealthAndSafetyRounded />, ruta: '/vacunacion' },
   { texto: 'Alertas', icono: <NotificationsActiveRounded />, ruta: '/alertas' },
   { texto: 'Campañas', icono: <CampaignRounded />, ruta: '/campanas' },
+  {
+    texto: 'Reportes',
+    icono: <AssessmentRounded />,
+    ruta: '/reportes',
+    roles: ['admin', 'encargado'],
+  },
   {
     texto: 'Usuarios',
     icono: <ManageAccountsRounded />,

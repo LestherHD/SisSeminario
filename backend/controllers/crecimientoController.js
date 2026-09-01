@@ -1,6 +1,6 @@
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
 import Nino from '../models/Nino.js';
-import { calcularEdadMeses, calcularPercentil } from '../utils/calculos.js';
+import { evaluarMedicionOms, obtenerCurvaOms } from '../services/omsService.js';
 import { analizarNino } from '../utils/motorAlertas.js';
 
 export async function registrar(req, res) {
@@ -13,18 +13,20 @@ export async function registrar(req, res) {
     }
 
     const fechaMedicion = fecha || new Date();
-    const edadMeses = calcularEdadMeses(ninoEncontrado.fechaNacimiento, fechaMedicion);
-    const percentilPeso = calcularPercentil('peso', ninoEncontrado.sexo, edadMeses, peso);
-    const percentilTalla = calcularPercentil('talla', ninoEncontrado.sexo, edadMeses, talla);
+    const evaluacionOms = evaluarMedicionOms({
+      sexo: ninoEncontrado.sexo,
+      fechaNacimiento: ninoEncontrado.fechaNacimiento,
+      fechaMedicion,
+      peso,
+      talla,
+    });
 
     const registro = await RegistroCrecimiento.create({
       nino,
       peso,
       talla,
       fecha: fechaMedicion,
-      edadMeses,
-      percentilPeso,
-      percentilTalla,
+      ...evaluacionOms,
     });
 
     try {
@@ -35,6 +37,9 @@ export async function registrar(req, res) {
 
     return res.status(201).json(registro);
   } catch (error) {
+    if (/peso|talla|fecha|medición|nacimiento|sexo/i.test(error.message)) {
+      return res.status(400).json({ mensaje: error.message });
+    }
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
   }
 }
@@ -68,18 +73,18 @@ export async function actualizar(req, res) {
     const pesoActualizado = peso ?? registro.peso;
     const tallaActualizada = talla ?? registro.talla;
     const fechaActualizada = fecha || registro.fecha;
-    const edadMeses = calcularEdadMeses(nino.fechaNacimiento, fechaActualizada);
+    const evaluacionOms = evaluarMedicionOms({
+      sexo: nino.sexo,
+      fechaNacimiento: nino.fechaNacimiento,
+      fechaMedicion: fechaActualizada,
+      peso: pesoActualizado,
+      talla: tallaActualizada,
+    });
 
     registro.peso = pesoActualizado;
     registro.talla = tallaActualizada;
     registro.fecha = fechaActualizada;
-    registro.edadMeses = edadMeses;
-    registro.percentilPeso = calcularPercentil(
-      'peso', nino.sexo, edadMeses, pesoActualizado
-    );
-    registro.percentilTalla = calcularPercentil(
-      'talla', nino.sexo, edadMeses, tallaActualizada
-    );
+    Object.assign(registro, evaluacionOms);
     await registro.save();
 
     try {
@@ -90,8 +95,68 @@ export async function actualizar(req, res) {
 
     return res.status(200).json(registro);
   } catch (error) {
+    if (/peso|talla|fecha|medición|nacimiento|sexo/i.test(error.message)) {
+      return res.status(400).json({ mensaje: error.message });
+    }
     return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
   }
+}
+
+export async function obtenerCurvas(req, res) {
+  try {
+    const nino = await Nino.findOne({ _id: req.params.ninoId, activo: true }).lean();
+    if (!nino) return res.status(404).json({ mensaje: 'Niño no encontrado' });
+
+    const registros = await RegistroCrecimiento.find({
+      nino: nino._id,
+      activo: true,
+    })
+      .sort({ fecha: 1 })
+      .lean();
+
+    const edadActual = calcularEdadActualMeses(nino.fechaNacimiento);
+    const edadesRegistradas = registros.map((registro) =>
+      Number(registro.edadMesesExacta ?? registro.edadMeses ?? 0)
+    );
+    const edadMaxima = Math.max(12, edadActual, ...edadesRegistradas) + 3;
+    const edadMinima = Math.max(0, Math.min(...edadesRegistradas, edadActual) - 6);
+
+    return res.status(200).json({
+      referencia: edadMaxima < 60 ? 'OMS 2006' : 'OMS 2006 / OMS 2007',
+      peso: {
+        referencia: obtenerCurvaOms('peso', nino.sexo, edadMinima, edadMaxima),
+        mediciones: registros.map((registro) => ({
+          edadMeses: Number(registro.edadMesesExacta ?? registro.edadMeses),
+          valor: registro.peso,
+          fecha: registro.fecha,
+        })),
+      },
+      talla: {
+        referencia: obtenerCurvaOms('talla', nino.sexo, edadMinima, edadMaxima),
+        mediciones: registros.map((registro) => ({
+          edadMeses: Number(registro.edadMesesExacta ?? registro.edadMeses),
+          valor: registro.talla,
+          fecha: registro.fecha,
+        })),
+      },
+      imc: {
+        referencia: obtenerCurvaOms('imc', nino.sexo, edadMinima, edadMaxima),
+        mediciones: registros.map((registro) => ({
+          edadMeses: Number(registro.edadMesesExacta ?? registro.edadMeses),
+          valor:
+            registro.imc ?? Number((registro.peso / (registro.talla / 100) ** 2).toFixed(2)),
+          fecha: registro.fecha,
+        })),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ mensaje: 'Error al cargar curvas OMS', error: error.message });
+  }
+}
+
+function calcularEdadActualMeses(fechaNacimiento) {
+  const dias = Math.max(0, (Date.now() - new Date(fechaNacimiento).getTime()) / 86400000);
+  return dias / 30.4375;
 }
 
 export async function eliminar(req, res) {

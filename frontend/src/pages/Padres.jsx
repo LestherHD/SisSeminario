@@ -29,6 +29,7 @@ import {
   Switch,
   InputAdornment,
   Pagination,
+  Tooltip,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -37,6 +38,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import RestoreIcon from '@mui/icons-material/Restore';
 import SearchIcon from '@mui/icons-material/Search';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import DialogoEliminar from '../components/DialogoEliminar.jsx';
 import { departamentos } from '../data/guatemala.js';
@@ -45,10 +47,12 @@ export default function Padres() {
   const { usuario } = useAuth();
   const puedeGestionar = ['admin', 'encargado', 'personal'].includes(usuario?.rol);
   const puedeEliminar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
+  const puedeRevocarTelegram = usuario?.rol === 'admin';
   const [padres, setPadres] = useState([]);
   const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [mensaje, setMensaje] = useState('');
   const [errorFormulario, setErrorFormulario] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [busquedaPadre, setBusquedaPadre] = useState('');
@@ -59,6 +63,8 @@ export default function Padres() {
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
   const [eliminando, setEliminando] = useState(false);
+  const [revocacion, setRevocacion] = useState({ abierto: false, padre: null });
+  const [revocando, setRevocando] = useState(false);
   const [form, setForm] = useState({
     primerNombre: '',
     segundoNombre: '',
@@ -69,7 +75,6 @@ export default function Padres() {
     telefono: '',
     email: '',
     metodoContacto: [],
-    telegramChatId: '',
     departamentoFiltro: '',
     municipioFiltro: '',
     comunidad: null,
@@ -100,11 +105,17 @@ export default function Padres() {
   };
 
   useEffect(() => {
+    // Carga inicial de datos externos para los selectores.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarComunidades();
   }, []);
 
   useEffect(() => {
+    // Recarga el listado cuando cambia la vista de registros inactivos.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarPadres();
+    // cargarPadres usa el valor actual de mostrarInactivos en esta sincronización.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mostrarInactivos]);
 
   const abrirCrear = () => {
@@ -119,7 +130,6 @@ export default function Padres() {
       telefono: '',
       email: '',
       metodoContacto: [],
-      telegramChatId: '',
       departamentoFiltro: '',
       municipioFiltro: '',
       comunidad: null,
@@ -146,7 +156,6 @@ export default function Padres() {
       telefono: padre.telefono || '',
       email: padre.email || '',
       metodoContacto: padre.metodoContacto || [],
-      telegramChatId: padre.telegramChatId || '',
       departamentoFiltro: comunidadPadre?.departamento || '',
       municipioFiltro: comunidadPadre?.municipio || '',
       comunidad: comunidadId || '',
@@ -211,7 +220,6 @@ export default function Padres() {
       valor: form.metodoContacto.map((metodo) => metodo === 'telegram' ? 'Telegram' : 'Email').join(', '),
       valorAnterior: editando?.metodoContacto?.map((metodo) => metodo === 'telegram' ? 'Telegram' : 'Email').join(', '),
     },
-    { label: 'Telegram Chat ID', valor: form.telegramChatId, valorAnterior: editando?.telegramChatId },
     {
       label: 'Comunidad',
       valor: comunidades.find((c) => c._id === form.comunidad)?.nombre || '',
@@ -239,6 +247,22 @@ export default function Padres() {
       await cargarPadres();
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al reactivar el padre');
+    }
+  };
+
+  const revocarTelegram = async () => {
+    if (!revocacion.padre) return;
+    setRevocando(true);
+    setError('');
+    try {
+      const respuesta = await api.patch(`/padres/${revocacion.padre._id}/telegram/revocar`);
+      await cargarPadres();
+      setRevocacion({ abierto: false, padre: null });
+      setMensaje(respuesta.data?.mensaje || 'Vinculación de Telegram revocada');
+    } catch (errorRevocacion) {
+      setError(errorRevocacion.response?.data?.mensaje || 'No se pudo revocar Telegram');
+    } finally {
+      setRevocando(false);
     }
   };
 
@@ -316,6 +340,12 @@ export default function Padres() {
           </Alert>
         )}
 
+        {mensaje && (
+          <Alert severity="success" sx={{ mb: 3 }} onClose={() => setMensaje('')}>
+            {mensaje}
+          </Alert>
+        )}
+
         {!cargando && !error && (
           <Stack spacing={2}>
             <TextField
@@ -389,6 +419,17 @@ export default function Padres() {
                               <IconButton aria-label="editar" onClick={() => abrirEditar(padre)}>
                                 <EditIcon />
                               </IconButton>
+                              {puedeRevocarTelegram && padre.telegramChatId?.trim() && (
+                                <Tooltip title="Revocar vinculación de Telegram">
+                                  <IconButton
+                                    aria-label="revocar Telegram"
+                                    color="warning"
+                                    onClick={() => setRevocacion({ abierto: true, padre })}
+                                  >
+                                    <LinkOffIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                               {puedeEliminar && (
                                 <IconButton
                                   aria-label="eliminar"
@@ -509,13 +550,13 @@ export default function Padres() {
                 ))}
               </FormGroup>
             </Box>
-            <TextField
-              label="Telegram Chat ID"
-              fullWidth
-              value={form.telegramChatId}
-              onChange={(e) => setForm({ ...form, telegramChatId: e.target.value })}
-              helperText="Número de chat de Telegram del padre (opcional). El padre debe escribir primero al bot."
-            />
+            {form.metodoContacto.includes('telegram') && (
+              <Alert severity={editando?.telegramChatId ? 'success' : 'info'}>
+                {editando?.telegramChatId
+                  ? 'Telegram está confirmado. La vinculación solo puede revocarse desde la tabla por un administrador.'
+                  : 'Para confirmar Telegram, el padre debe escribir /start al bot e ingresar su DPI.'}
+              </Alert>
+            )}
             <Autocomplete
               options={departamentos.map((item) => item.departamento)}
               value={form.departamentoFiltro || null}
@@ -590,6 +631,38 @@ export default function Padres() {
         onCancelar={() => setEliminacion({ abierto: false, elemento: null })}
         onConfirmar={confirmarEliminar}
       />
+
+      <Dialog
+        open={revocacion.abierto}
+        onClose={revocando ? undefined : () => setRevocacion({ abierto: false, padre: null })}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Revocar vinculación de Telegram</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mt: 1 }}>
+            Se desvinculará el chat de <b>{revocacion.padre?.nombreCompleto}</b>. Dejará de recibir
+            avisos por Telegram hasta que vuelva a ejecutar <b>/start</b> e ingrese su DPI.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setRevocacion({ abierto: false, padre: null })}
+            disabled={revocando}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            startIcon={revocando ? <CircularProgress size={18} color="inherit" /> : <LinkOffIcon />}
+            onClick={revocarTelegram}
+            disabled={revocando}
+          >
+            Revocar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

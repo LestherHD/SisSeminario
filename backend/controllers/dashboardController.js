@@ -66,20 +66,23 @@ export async function obtenerEstadisticas(req, res) {
         const [ultimoCrecimiento, vacunaciones] = await Promise.all([
           RegistroCrecimiento.findOne({ nino: nino._id, activo: true })
             .sort({ fecha: -1 })
-            .select('percentilPeso')
+            .select('estadoNutricional')
             .lean(),
           Vacunacion.find({ nino: nino._id, activo: true })
             .select('proximaDosis')
             .lean(),
         ]);
 
-        if (ultimoCrecimiento?.percentilPeso == null) {
+        const estado = ultimoCrecimiento?.estadoNutricional;
+        if (!estado || estado === 'sin_datos') {
           estadoNutricional.sinDatos += 1;
-        } else if (ultimoCrecimiento.percentilPeso < 5) {
+        } else if (
+          ['desnutricion', 'desnutricion_severa', 'delgadez', 'delgadez_severa'].includes(estado)
+        ) {
           estadoNutricional.desnutricion += 1;
-        } else if (ultimoCrecimiento.percentilPeso <= 85) {
+        } else if (estado === 'normal') {
           estadoNutricional.normal += 1;
-        } else if (ultimoCrecimiento.percentilPeso <= 95) {
+        } else if (['riesgo_sobrepeso', 'sobrepeso'].includes(estado)) {
           estadoNutricional.sobrepeso += 1;
         } else {
           estadoNutricional.obesidad += 1;

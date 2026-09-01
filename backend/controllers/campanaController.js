@@ -2,11 +2,15 @@ import mongoose from 'mongoose';
 import Campana from '../models/Campana.js';
 import Comunidad from '../models/Comunidad.js';
 import Padre from '../models/Padre.js';
+import Nino from '../models/Nino.js';
+import Vacunacion from '../models/Vacunacion.js';
 import Notificacion from '../models/Notificacion.js';
 import { enviarCampanaEmail } from '../services/emailService.js';
 import { enviarCampanaTelegram } from '../services/telegramService.js';
 
 const ZONA_HORARIA = 'America/Guatemala';
+const TIPOS_CAMPANA = ['jornada_vacunacion', 'control_medico', 'otro'];
+const ESTADOS_VACUNACION = ['todos', 'al_dia', 'atrasada', 'sin_esquema'];
 
 function fechaGuatemala(fecha = new Date()) {
   const partes = new Intl.DateTimeFormat('en-CA', {
@@ -36,6 +40,152 @@ function calcularEstado(fechaRealizacion) {
 
 function conEstado(campana) {
   return { ...campana, estado: calcularEstado(campana.fechaRealizacion) };
+}
+
+function validarSegmentacion({ tipoCampana, edadMinimaAnios, edadMaximaAnios, estadoVacunacion }) {
+  const tipo = tipoCampana || 'jornada_vacunacion';
+  const estado = estadoVacunacion || 'todos';
+  const edadMinima = edadMinimaAnios === '' || edadMinimaAnios == null
+    ? null
+    : Number(edadMinimaAnios);
+  const edadMaxima = edadMaximaAnios === '' || edadMaximaAnios == null
+    ? null
+    : Number(edadMaximaAnios);
+
+  if (!TIPOS_CAMPANA.includes(tipo)) return { error: 'Seleccione un tipo de campaña válido' };
+  if (!ESTADOS_VACUNACION.includes(estado)) {
+    return { error: 'Seleccione un estado de vacunación válido' };
+  }
+  if (edadMinima != null && (!Number.isInteger(edadMinima) || edadMinima < 0 || edadMinima > 19)) {
+    return { error: 'La edad mínima debe ser un número entero entre 0 y 19 años' };
+  }
+  if (edadMaxima != null && (!Number.isInteger(edadMaxima) || edadMaxima < 0 || edadMaxima > 19)) {
+    return { error: 'La edad máxima debe ser un número entero entre 0 y 19 años' };
+  }
+  if (edadMinima != null && edadMaxima != null && edadMinima > edadMaxima) {
+    return { error: 'La edad mínima no puede ser mayor que la edad máxima' };
+  }
+
+  return {
+    segmentacion: {
+      tipoCampana: tipo,
+      edadMinimaAnios: edadMinima,
+      edadMaximaAnios: edadMaxima,
+      estadoVacunacion: estado,
+    },
+  };
+}
+
+function edadEnAnios(fechaNacimiento, fecha = new Date()) {
+  return (fecha.getTime() - new Date(fechaNacimiento).getTime()) / (365.2425 * 86400000);
+}
+
+function estadoVacunacionNino(registros, hoy) {
+  if (!registros?.length) return 'sin_esquema';
+
+  const ultimosPorVacuna = new Map();
+  for (const registro of registros) {
+    const vacunaId = String(registro.vacuna);
+    const anterior = ultimosPorVacuna.get(vacunaId);
+    if (
+      !anterior ||
+      registro.numeroDosis > anterior.numeroDosis ||
+      (registro.numeroDosis === anterior.numeroDosis && registro.fechaAplicada > anterior.fechaAplicada)
+    ) {
+      ultimosPorVacuna.set(vacunaId, registro);
+    }
+  }
+
+  const atrasada = Array.from(ultimosPorVacuna.values()).some(
+    (registro) => registro.proximaDosis && new Date(registro.proximaDosis) < hoy
+  );
+  return atrasada ? 'atrasada' : 'al_dia';
+}
+
+async function obtenerDestinatarios(campana) {
+  const estadoObjetivo = campana.estadoVacunacion || 'todos';
+  const filtroComunidades = { activo: true, departamento: campana.departamento };
+  if (campana.alcance !== 'departamento') filtroComunidades.municipio = campana.municipio;
+  if (campana.alcance === 'comunidad') {
+    filtroComunidades._id = campana.comunidad?._id || campana.comunidad;
+  }
+
+  const comunidades = await Comunidad.find(filtroComunidades).select('_id').lean();
+  const idsComunidades = comunidades.map(({ _id }) => _id);
+  const padresUbicacion = await Padre.find({
+    activo: true,
+    comunidad: { $in: idsComunidades },
+    $or: [
+      { metodoContacto: 'email', email: { $type: 'string', $ne: '' } },
+      { metodoContacto: 'telegram', telegramChatId: { $type: 'string', $ne: '' } },
+    ],
+  }).select('nombreCompleto primerNombre email telegramChatId metodoContacto').lean();
+  const ninos = await Nino.find({
+    activo: true,
+    comunidad: { $in: idsComunidades },
+  }).select('_id fechaNacimiento padres').lean();
+
+  const vacunaciones = await Vacunacion.find({
+    activo: true,
+    nino: { $in: ninos.map(({ _id }) => _id) },
+  }).select('nino vacuna numeroDosis fechaAplicada proximaDosis').lean();
+  const vacunacionesPorNino = vacunaciones.reduce((grupos, registro) => {
+    const clave = String(registro.nino);
+    if (!grupos.has(clave)) grupos.set(clave, []);
+    grupos.get(clave).push(registro);
+    return grupos;
+  }, new Map());
+
+  const hoy = new Date();
+  const ninosCoincidentes = ninos.filter((nino) => {
+    const edad = edadEnAnios(nino.fechaNacimiento, hoy);
+    if (campana.edadMinimaAnios != null && edad < campana.edadMinimaAnios) return false;
+    if (campana.edadMaximaAnios != null && edad >= campana.edadMaximaAnios + 1) return false;
+
+    if (estadoObjetivo !== 'todos') {
+      const estado = estadoVacunacionNino(vacunacionesPorNino.get(String(nino._id)), hoy);
+      if (estado !== estadoObjetivo) return false;
+    }
+    return true;
+  });
+
+  const idsPadres = Array.from(
+    new Set(ninosCoincidentes.flatMap((nino) => (nino.padres || []).map(String)))
+  );
+  const hayFiltrosMedicos =
+    campana.edadMinimaAnios != null ||
+    campana.edadMaximaAnios != null ||
+    estadoObjetivo !== 'todos';
+  const idsPadresCoincidentes = new Set(idsPadres);
+  const padres = hayFiltrosMedicos
+    ? padresUbicacion.filter((padre) => idsPadresCoincidentes.has(String(padre._id)))
+    : padresUbicacion;
+
+  const destinatariosEmail = Array.from(
+    padres.reduce((unicos, padre) => {
+      if (!padre.metodoContacto?.includes('email')) return unicos;
+      const email = padre.email?.trim().toLowerCase();
+      if (email && !unicos.has(email)) unicos.set(email, { ...padre, email });
+      return unicos;
+    }, new Map()).values()
+  );
+  const destinatariosTelegram = Array.from(
+    padres.reduce((unicos, padre) => {
+      if (!padre.metodoContacto?.includes('telegram')) return unicos;
+      const chatId = padre.telegramChatId?.trim();
+      if (chatId && !unicos.has(chatId)) unicos.set(chatId, { ...padre, telegramChatId: chatId });
+      return unicos;
+    }, new Map()).values()
+  );
+
+  return {
+    padres,
+    destinatariosEmail,
+    destinatariosTelegram,
+    ninosCoincidentes,
+    totalPadresUbicacion: padresUbicacion.length,
+    padresExcluidos: Math.max(0, padresUbicacion.length - padres.length),
+  };
 }
 
 async function validarDestino({ alcance, departamento, municipio, comunidad }) {
@@ -105,12 +255,17 @@ export async function crear(req, res) {
 
     const validacion = await validarDestino(req.body);
     if (validacion.error) return res.status(400).json({ mensaje: validacion.error });
+    const validacionSegmentacion = validarSegmentacion(req.body);
+    if (validacionSegmentacion.error) {
+      return res.status(400).json({ mensaje: validacionSegmentacion.error });
+    }
 
     const campana = await Campana.create({
       nombre: nombre.trim(),
       descripcion: descripcion.trim(),
       fechaRealizacion: fecha,
       ...validacion.destino,
+      ...validacionSegmentacion.segmentacion,
       creadoPor: req.usuario?._id,
     });
 
@@ -141,12 +296,17 @@ export async function actualizar(req, res) {
 
     const validacion = await validarDestino(req.body);
     if (validacion.error) return res.status(400).json({ mensaje: validacion.error });
+    const validacionSegmentacion = validarSegmentacion(req.body);
+    if (validacionSegmentacion.error) {
+      return res.status(400).json({ mensaje: validacionSegmentacion.error });
+    }
 
     Object.assign(campanaActual, {
       nombre: nombre.trim(),
       descripcion: descripcion.trim(),
       fechaRealizacion: fecha,
       ...validacion.destino,
+      ...validacionSegmentacion.segmentacion,
     });
     await campanaActual.save();
 
@@ -170,6 +330,39 @@ export async function eliminar(req, res) {
   }
 }
 
+export async function previsualizarDestinatarios(req, res) {
+  try {
+    const campana = await Campana.findOne({ _id: req.params.id, activo: true })
+      .populate('comunidad', 'nombre departamento municipio');
+    if (!campana) return res.status(404).json({ mensaje: 'Campaña no encontrada' });
+
+    const {
+      padres,
+      destinatariosEmail,
+      destinatariosTelegram,
+      ninosCoincidentes,
+      totalPadresUbicacion,
+      padresExcluidos,
+    } =
+      await obtenerDestinatarios(campana);
+
+    return res.status(200).json({
+      totalPadres: padres.length,
+      totalNinos: ninosCoincidentes.length,
+      totalPadresUbicacion,
+      padresExcluidos,
+      correos: destinatariosEmail.length,
+      telegram: destinatariosTelegram.length,
+      totalIntentos: destinatariosEmail.length + destinatariosTelegram.length,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      mensaje: 'Error al calcular los destinatarios',
+      error: error.message,
+    });
+  }
+}
+
 export async function enviar(req, res) {
   try {
     const campana = await Campana.findOne({ _id: req.params.id, activo: true }).populate(
@@ -181,39 +374,8 @@ export async function enviar(req, res) {
       return res.status(409).json({ mensaje: 'Esta campaña ya fue notificada' });
     }
 
-    const filtroComunidades = { activo: true, departamento: campana.departamento };
-    if (campana.alcance !== 'departamento') filtroComunidades.municipio = campana.municipio;
-    if (campana.alcance === 'comunidad') filtroComunidades._id = campana.comunidad?._id;
-
-    const comunidades = await Comunidad.find(filtroComunidades).select('_id').lean();
-    const padres = await Padre.find({
-      activo: true,
-      comunidad: { $in: comunidades.map(({ _id }) => _id) },
-      $or: [
-        { metodoContacto: 'email', email: { $type: 'string', $ne: '' } },
-        { metodoContacto: 'telegram', telegramChatId: { $type: 'string', $ne: '' } },
-      ],
-    }).select('nombreCompleto primerNombre email telegramChatId metodoContacto').lean();
-
-    const destinatariosEmail = Array.from(
-      padres.reduce((unicos, padre) => {
-        if (!padre.metodoContacto?.includes('email')) return unicos;
-        const email = padre.email?.trim().toLowerCase();
-        if (email && !unicos.has(email)) unicos.set(email, { ...padre, email });
-        return unicos;
-      }, new Map()).values()
-    );
-
-    const destinatariosTelegram = Array.from(
-      padres.reduce((unicos, padre) => {
-        if (!padre.metodoContacto?.includes('telegram')) return unicos;
-        const chatId = padre.telegramChatId?.trim();
-        if (chatId && !unicos.has(chatId)) {
-          unicos.set(chatId, { ...padre, telegramChatId: chatId });
-        }
-        return unicos;
-      }, new Map()).values()
-    );
+    const { padres, destinatariosEmail, destinatariosTelegram, ninosCoincidentes } =
+      await obtenerDestinatarios(campana);
 
     if (destinatariosEmail.length === 0 && destinatariosTelegram.length === 0) {
       return res.status(400).json({
@@ -289,6 +451,7 @@ export async function enviar(req, res) {
       telegramEnviados,
       telegramFallidos,
       totalPadres: padres.length,
+      totalNinos: ninosCoincidentes.length,
       totalIntentos: envios.length,
     });
   } catch (error) {

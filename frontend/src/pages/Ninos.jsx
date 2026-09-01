@@ -39,6 +39,7 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
 import DescriptionIcon from '@mui/icons-material/Description';
 import PrintIcon from '@mui/icons-material/Print';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import DialogoEliminar from '../components/DialogoEliminar.jsx';
 import Expediente from '../components/Expediente.jsx';
@@ -689,9 +690,18 @@ export default function Ninos() {
               <Typography variant="h6">
                 PIN: <b>{carnetData.pin}</b>
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                {carnetData.url}
-              </Typography>
+              <Button
+                component="a"
+                href={carnetData.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="outlined"
+                size="small"
+                startIcon={<OpenInNewIcon />}
+                sx={{ mt: 1.5 }}
+              >
+                Ver carnet
+              </Button>
 
               {mensajeCarnet && (
                 <Alert severity="success" sx={{ mt: 2 }}>

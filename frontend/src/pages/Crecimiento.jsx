@@ -29,10 +29,14 @@ import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import DialogoConfirmacion from '../components/DialogoConfirmacion.jsx';
 import { formatearEdad } from '../utils/edad.js';
-import { etiquetaPercentil, etiquetaPercentilTalla } from '../utils/percentiles.js';
 import {
-  LineChart,
+  etiquetaEstadoNutricional,
+  etiquetaEstadoTalla,
+} from '../utils/percentiles.js';
+import {
+  ComposedChart,
   Line,
+  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -47,6 +51,78 @@ function formatoFechaHoy() {
 
 const KG_A_LIBRAS = 2.20462;
 
+const LINEAS_PERCENTILES = [
+  { clave: 'p3', nombre: 'P3', color: '#d32f2f', guiones: '5 4' },
+  { clave: 'p15', nombre: 'P15', color: '#ed6c02', guiones: '4 4' },
+  { clave: 'p50', nombre: 'P50', color: '#2e7d32' },
+  { clave: 'p85', nombre: 'P85', color: '#ed6c02', guiones: '4 4' },
+  { clave: 'p97', nombre: 'P97', color: '#d32f2f', guiones: '5 4' },
+];
+
+function GraficaOms({ titulo, unidad, datos }) {
+  if (!datos?.referencia?.length) return null;
+
+  return (
+    <Paper sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0, overflow: 'hidden' }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+        {titulo}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        Líneas de referencia OMS y mediciones del niño o niña.
+      </Typography>
+      <Box sx={{ width: '100%', minWidth: 0, mt: 1.5 }}>
+        <ResponsiveContainer width="100%" height={340}>
+          <ComposedChart
+            data={datos.referencia}
+            margin={{ top: 10, right: 12, left: 0, bottom: 18 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis
+              type="number"
+              dataKey="edadMeses"
+              domain={['dataMin', 'dataMax']}
+              tickMargin={8}
+              label={{ value: 'Edad (meses)', position: 'insideBottom', offset: -12 }}
+            />
+            <YAxis
+              domain={['auto', 'auto']}
+              label={{ value: unidad, angle: -90, position: 'insideLeft' }}
+            />
+            <Tooltip
+              formatter={(valor, nombre) => [
+                `${Number(valor).toFixed(2)} ${unidad}`,
+                nombre,
+              ]}
+              labelFormatter={(edad) => `${Number(edad).toFixed(1)} meses`}
+            />
+            <Legend verticalAlign="top" height={42} />
+            {LINEAS_PERCENTILES.map((linea) => (
+              <Line
+                key={linea.clave}
+                type="monotone"
+                dataKey={linea.clave}
+                name={linea.nombre}
+                stroke={linea.color}
+                strokeWidth={linea.clave === 'p50' ? 2.5 : 1.5}
+                strokeDasharray={linea.guiones}
+                dot={false}
+                isAnimationActive={false}
+              />
+            ))}
+            <Scatter
+              data={datos.mediciones}
+              dataKey="valor"
+              name="Medición"
+              fill="#1565c0"
+              line={{ stroke: '#1565c0', strokeWidth: 2 }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </Box>
+    </Paper>
+  );
+}
+
 export default function Crecimiento() {
   const [searchParams] = useSearchParams();
   const { usuario } = useAuth();
@@ -56,6 +132,7 @@ export default function Crecimiento() {
   const [ninoSeleccionado, setNinoSeleccionado] = useState('');
   const [ninoObj, setNinoObj] = useState(null);
   const [mediciones, setMediciones] = useState([]);
+  const [curvasOms, setCurvasOms] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
@@ -81,6 +158,7 @@ export default function Crecimiento() {
   const cargarMediciones = async (ninoId) => {
     if (!ninoId) {
       setMediciones([]);
+      setCurvasOms(null);
       return;
     }
 
@@ -88,8 +166,12 @@ export default function Crecimiento() {
     setError('');
 
     try {
-      const response = await api.get(`/crecimiento/nino/${ninoId}`);
-      setMediciones(response.data);
+      const [respuestaMediciones, respuestaCurvas] = await Promise.all([
+        api.get(`/crecimiento/nino/${ninoId}`),
+        api.get(`/crecimiento/curvas/${ninoId}`),
+      ]);
+      setMediciones(respuestaMediciones.data);
+      setCurvasOms(respuestaCurvas.data);
     } catch (error) {
       setError(error.response?.data?.mensaje || 'Error al cargar mediciones');
     } finally {
@@ -98,6 +180,8 @@ export default function Crecimiento() {
   };
 
   useEffect(() => {
+    // La carga inicial sincroniza esta vista con la API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarNinos();
   }, []);
 
@@ -111,12 +195,16 @@ export default function Crecimiento() {
     const nino = ninos.find((n) => n._id === ninoIdParam);
 
     if (nino) {
+      // Sincroniza el parámetro de la URL con el selector visible.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNinoObj(nino);
       setNinoSeleccionado(nino._id);
     }
   }, [ninos, searchParams]);
 
   useEffect(() => {
+    // Recarga el historial al cambiar el niño seleccionado.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarMediciones(ninoSeleccionado);
   }, [ninoSeleccionado]);
 
@@ -200,17 +288,6 @@ export default function Crecimiento() {
       valorAnterior: editando?.fecha ? String(editando.fecha).slice(0, 10) : undefined,
     },
   ];
-
-  const datosGrafica = mediciones.map((medicion) => ({
-    ...medicion,
-    fechaGrafica: medicion.fecha
-      ? new Date(medicion.fecha).toLocaleDateString('es-GT', {
-          day: '2-digit',
-          month: 'short',
-          year: '2-digit',
-        })
-      : '-',
-  }));
 
   return (
     <Box>
@@ -321,49 +398,45 @@ export default function Crecimiento() {
             {!cargando && !error && (
               <>
                 <Box sx={{ mb: 2 }}>
-                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}>
-                    Percentil de peso
-                  </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
-                    <Chip size="small" color="error" label="Desnutrición (<5)" />
-                    <Chip size="small" color="success" label="Normal (5-85)" />
-                    <Chip size="small" color="warning" label="Sobrepeso (85-95)" />
-                    <Chip size="small" color="error" label="Obesidad (>95)" />
-                  </Stack>
-                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}>
-                    Percentil de talla
-                  </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                    <Chip size="small" color="error" label="Talla baja (<5)" />
-                    <Chip size="small" color="success" label="Normal (5-95)" />
-                    <Chip size="small" color="info" label="Talla alta (>95)" />
-                  </Stack>
+                  <Alert severity="info">
+                    Evaluación con estándares internacionales OMS según edad exacta y sexo:
+                    OMS 2006 para menores de 5 años y OMS 2007 desde los 5 años.
+                  </Alert>
                 </Box>
                 <TableContainer component={Paper} sx={{ maxWidth: '100%', overflowX: 'auto' }}>
-                <Table sx={{ minWidth: 900 }}>
+                <Table sx={{ minWidth: 1120 }}>
                   <TableHead>
                     <TableRow>
                       <TableCell>Fecha</TableCell>
                       <TableCell>Edad (meses)</TableCell>
                       <TableCell>Peso (kg)</TableCell>
                       <TableCell>Talla (cm)</TableCell>
-                      <TableCell>Percentil de peso</TableCell>
-                      <TableCell>Percentil de talla</TableCell>
+                      <TableCell>IMC</TableCell>
+                      <TableCell>Estado nutricional OMS</TableCell>
+                      <TableCell>Talla para edad OMS</TableCell>
+                      <TableCell>Peso para edad</TableCell>
+                      <TableCell>Referencia</TableCell>
                       <TableCell>Acciones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {mediciones.length > 0 ? (
                       mediciones.map((medicion) => {
-                        const percentilPeso = etiquetaPercentil(medicion.percentilPeso);
-                        const percentilTalla = etiquetaPercentilTalla(medicion.percentilTalla);
+                        const estadoNutricional = etiquetaEstadoNutricional(
+                          medicion.estadoNutricional,
+                          medicion.percentilImc
+                        );
+                        const estadoTalla = etiquetaEstadoTalla(
+                          medicion.estadoTalla,
+                          medicion.percentilTalla
+                        );
 
                         return (
                         <TableRow key={medicion._id}>
                           <TableCell>
                             {medicion.fecha ? new Date(medicion.fecha).toLocaleDateString('es-GT') : '-'}
                           </TableCell>
-                          <TableCell>{medicion.edadMeses ?? '-'}</TableCell>
+                          <TableCell>{medicion.edadMesesExacta ?? medicion.edadMeses ?? '-'}</TableCell>
                           <TableCell>
                             {medicion.peso != null
                               ? `${medicion.peso} kg (${(medicion.peso * KG_A_LIBRAS).toFixed(1)} lb)`
@@ -371,19 +444,28 @@ export default function Crecimiento() {
                           </TableCell>
                           <TableCell>{medicion.talla ?? '-'}</TableCell>
                           <TableCell>
+                            {medicion.imc != null ? `${medicion.imc} (Z ${medicion.zImcEdad})` : '—'}
+                          </TableCell>
+                          <TableCell>
                             <Chip
                               size="small"
-                              label={percentilPeso.texto}
-                              color={percentilPeso.color}
+                              label={estadoNutricional.texto}
+                              color={estadoNutricional.color}
                             />
                           </TableCell>
                           <TableCell>
                             <Chip
                               size="small"
-                              label={percentilTalla.texto}
-                              color={percentilTalla.color}
+                              label={estadoTalla.texto}
+                              color={estadoTalla.color}
                             />
                           </TableCell>
+                          <TableCell>
+                            {medicion.percentilPeso == null
+                              ? '—'
+                              : `P${medicion.percentilPeso} · Z ${medicion.zPesoEdad}`}
+                          </TableCell>
+                          <TableCell>{medicion.referenciaOms || 'Pendiente de recalcular'}</TableCell>
                           <TableCell>
                             {puedeGestionar && (
                               <IconButton
@@ -400,7 +482,7 @@ export default function Crecimiento() {
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} align="center">
+                        <TableCell colSpan={10} align="center">
                           No hay mediciones registradas para este niño
                         </TableCell>
                       </TableRow>
@@ -411,80 +493,22 @@ export default function Crecimiento() {
               </>
             )}
 
-            {!cargando && !error && mediciones.length > 0 && (
+            {!cargando && !error && mediciones.length > 0 && curvasOms && (
               <Box sx={{ mt: 4 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
-                  Evolución del crecimiento
+                  Curvas de crecimiento contra estándares OMS
                 </Typography>
-                <Paper sx={{ p: { xs: 1.5, sm: 2.5 }, width: '100%', minWidth: 0, overflow: 'hidden' }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Peso y talla por fecha de control. Pase el cursor sobre un punto para ver
-                    los valores y la edad registrada.
-                  </Typography>
-                  <Box sx={{ width: '100%', minWidth: 0 }}>
-                    <ResponsiveContainer width="100%" height={360}>
-                      <LineChart
-                        data={datosGrafica}
-                        margin={{ top: 10, right: 20, left: 5, bottom: 15 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis
-                          dataKey="fechaGrafica"
-                          tickMargin={10}
-                          label={{ value: 'Fecha de control', position: 'insideBottom', offset: -10 }}
-                        />
-                        <YAxis
-                          yAxisId="peso"
-                          domain={[
-                            (minimo) => Math.max(0, Math.floor(minimo - 1)),
-                            (maximo) => Math.ceil(maximo + 1),
-                          ]}
-                          label={{ value: 'Peso (kg)', angle: -90, position: 'insideLeft' }}
-                        />
-                        <YAxis
-                          yAxisId="talla"
-                          orientation="right"
-                          domain={[
-                            (minimo) => Math.max(0, Math.floor(minimo - 3)),
-                            (maximo) => Math.ceil(maximo + 3),
-                          ]}
-                          label={{ value: 'Talla (cm)', angle: 90, position: 'insideRight' }}
-                        />
-                        <Tooltip
-                          formatter={(valor, nombre) => [
-                            nombre === 'Peso' ? `${valor} kg` : `${valor} cm`,
-                            nombre,
-                          ]}
-                          labelFormatter={(etiqueta, elementos) => {
-                            const edad = elementos?.[0]?.payload?.edadMeses;
-                            return edad == null ? etiqueta : `${etiqueta} · ${edad} meses`;
-                          }}
-                        />
-                        <Legend verticalAlign="top" height={36} />
-                        <Line
-                          yAxisId="peso"
-                          type="monotone"
-                          dataKey="peso"
-                          stroke="#1976d2"
-                          strokeWidth={3}
-                          name="Peso"
-                          dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                          activeDot={{ r: 6 }}
-                        />
-                        <Line
-                          yAxisId="talla"
-                          type="monotone"
-                          dataKey="talla"
-                          stroke="#2e7d32"
-                          strokeWidth={3}
-                          name="Talla"
-                          dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                          activeDot={{ r: 6 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Box>
-                </Paper>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' },
+                    gap: 2.5,
+                  }}
+                >
+                  <GraficaOms titulo="Peso para la edad" unidad="kg" datos={curvasOms.peso} />
+                  <GraficaOms titulo="Talla para la edad" unidad="cm" datos={curvasOms.talla} />
+                  <GraficaOms titulo="IMC para la edad" unidad="kg/m²" datos={curvasOms.imc} />
+                </Box>
               </Box>
             )}
           </>

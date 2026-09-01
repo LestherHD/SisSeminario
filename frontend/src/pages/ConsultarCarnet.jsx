@@ -368,18 +368,19 @@ export default function ConsultarCarnet() {
         <DialogContent>
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             <Typography variant="body2">
-              El percentil compara el peso de su hijo/a con el de otros niños de su edad.
+              Los indicadores comparan peso, talla e IMC con los estándares internacionales
+              de la OMS según la edad exacta y el sexo del niño o niña.
             </Typography>
             <Typography variant="body2">
-              <b>Desnutrición (rojo):</b> el peso está por debajo de lo saludable. Consulte
-              al personal de salud.
+              <b>Desnutrición o delgadez (rojo):</b> el IMC para la edad está por debajo de
+              lo esperado. Consulte al personal de salud.
             </Typography>
             <Typography variant="body2">
-              <b>Normal (verde):</b> el peso está en un rango saludable.
+              <b>Normal (verde):</b> el IMC para la edad está dentro del rango esperado.
             </Typography>
             <Typography variant="body2">
-              <b>Sobrepeso u obesidad (naranja/rojo):</b> el peso está por encima de lo
-              recomendado. El personal de salud puede orientarle.
+              <b>Riesgo de sobrepeso, sobrepeso u obesidad (naranja/rojo):</b> el IMC para
+              la edad está por encima de lo recomendado. El personal de salud puede orientarle.
             </Typography>
             <Typography variant="body2">
               La talla indica la estatura de su hijo/a comparada con otros niños de su edad.

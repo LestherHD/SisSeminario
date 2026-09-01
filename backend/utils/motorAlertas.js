@@ -7,17 +7,15 @@ import Notificacion from '../models/Notificacion.js';
 import { enviarMensajeTelegram } from '../services/telegramService.js';
 import { enviarAlertaEmail } from '../services/emailService.js';
 
-const TRES_MESES_MS = 1000 * 60 * 60 * 24 * 30 * 3;
+const DIA_MS = 1000 * 60 * 60 * 24;
+const MES_PROMEDIO_MS = DIA_MS * 30.4375;
 
-async function existeAlertaActiva(ninoId, motivo) {
-  const alerta = await Alerta.findOne({
+async function buscarAlertaActiva(ninoId, motivo) {
+  return Alerta.findOne({
     nino: ninoId,
     motivo,
     activo: true,
-    atendida: false,
   });
-
-  return Boolean(alerta);
 }
 
 async function notificarAlertaNueva(alerta) {
@@ -89,44 +87,75 @@ export async function analizarNino(ninoId) {
     activo: true,
   }).sort({ fecha: -1 });
 
-  const haceTresMeses = new Date(Date.now() - TRES_MESES_MS);
-  const registroReciente = await RegistroCrecimiento.findOne({
-    nino: ninoId,
-    activo: true,
-    fecha: { $gte: haceTresMeses },
-  });
+  const ahora = new Date();
+  const edadMeses = Math.max(
+    0,
+    (ahora.getTime() - new Date(nino.fechaNacimiento).getTime()) / MES_PROMEDIO_MS
+  );
+  const mesesControl = edadMeses < 24 ? 1 : 3;
+  const fechaLimiteControl = new Date(ahora.getTime() - mesesControl * MES_PROMEDIO_MS);
+  const sinControlReciente = !ultimoRegistro || ultimoRegistro.fecha < fechaLimiteControl;
+
+  const inicioHoyUtc = new Date(ahora);
+  inicioHoyUtc.setUTCHours(0, 0, 0, 0);
+  const inicioMananaUtc = new Date(inicioHoyUtc.getTime() + DIA_MS);
+  const finMananaUtc = new Date(inicioMananaUtc.getTime() + DIA_MS);
 
   const dosisAtrasada = await Vacunacion.findOne({
     nino: ninoId,
     activo: true,
-    proximaDosis: { $exists: true, $ne: null, $lt: new Date() },
+    proximaDosis: { $exists: true, $ne: null, $lt: inicioHoyUtc },
+  }).sort({ proximaDosis: 1 }).populate('vacuna', 'nombre');
+
+  const dosisProxima = await Vacunacion.findOne({
+    nino: ninoId,
+    activo: true,
+    proximaDosis: { $gte: inicioMananaUtc, $lt: finMananaUtc },
   }).populate('vacuna', 'nombre');
+
+  const estadoNutricional = ultimoRegistro?.estadoNutricional;
+  const estadosDesnutricion = [
+    'desnutricion_severa',
+    'desnutricion',
+    'delgadez_severa',
+    'delgadez',
+  ];
+  const estadosSobrepeso = ['riesgo_sobrepeso', 'sobrepeso', 'obesidad'];
+  const esDesnutricion = estadosDesnutricion.includes(estadoNutricional);
+  const esSobrepeso = estadosSobrepeso.includes(estadoNutricional);
 
   const evaluaciones = {
     desnutricion: {
-      activa: Boolean(ultimoRegistro && ultimoRegistro.percentilPeso < 5),
+      activa: esDesnutricion,
       tipo: 'critica',
       mensaje: ultimoRegistro
-        ? `El niño ${nino.nombreCompleto} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible desnutrición). Se recomienda evaluación.`
+        ? `${nino.nombreCompleto} presenta ${estadoNutricional.replaceAll('_', ' ')} según IMC para la edad (OMS, puntaje Z ${ultimoRegistro.zImcEdad}). Por favor acuda al centro de salud para evaluación.`
         : '',
     },
     sobrepeso: {
-      activa: Boolean(ultimoRegistro && ultimoRegistro.percentilPeso > 95),
-      tipo: 'preventiva',
+      activa: esSobrepeso,
+      tipo: estadoNutricional === 'obesidad' ? 'critica' : 'preventiva',
       mensaje: ultimoRegistro
-        ? `El niño ${nino.nombreCompleto} presenta percentil de peso ${ultimoRegistro.percentilPeso} (posible sobrepeso).`
+        ? `${nino.nombreCompleto} presenta ${estadoNutricional.replaceAll('_', ' ')} según IMC para la edad (OMS, puntaje Z ${ultimoRegistro.zImcEdad}). Por favor acuda al centro de salud para evaluación.`
         : '',
     },
     sin_registros: {
-      activa: !registroReciente,
+      activa: sinControlReciente,
       tipo: 'preventiva',
-      mensaje: `El niño ${nino.nombreCompleto} no tiene controles de crecimiento recientes (más de 3 meses).`,
+      mensaje: `${nino.nombreCompleto} no cuenta con un registro de crecimiento en ${mesesControl === 1 ? 'el último mes' : 'los últimos 3 meses'}. Por favor acuda al centro de salud para realizar su control.`,
+    },
+    vacuna_proxima: {
+      activa: Boolean(dosisProxima),
+      tipo: 'preventiva',
+      mensaje: dosisProxima
+        ? `Recordatorio: mañana corresponde la próxima dosis de ${dosisProxima.vacuna?.nombre || 'una vacuna'} para ${nino.nombreCompleto}. Por favor acuda al centro de salud.`
+        : '',
     },
     vacuna_atrasada: {
       activa: Boolean(dosisAtrasada),
       tipo: 'preventiva',
       mensaje: dosisAtrasada
-        ? `La próxima dosis de ${dosisAtrasada.vacuna?.nombre || 'una vacuna'} para ${nino.nombreCompleto} estaba programada para el ${new Date(dosisAtrasada.proximaDosis).toLocaleDateString('es-GT')} y se encuentra pendiente.`
+        ? `La dosis de ${dosisAtrasada.vacuna?.nombre || 'una vacuna'} para ${nino.nombreCompleto}, programada para el ${new Intl.DateTimeFormat('es-GT', { timeZone: 'UTC' }).format(new Date(dosisAtrasada.proximaDosis))}, ya venció y continúa pendiente. Por favor acuda al centro de salud.`
         : '',
     },
   };
@@ -136,9 +165,9 @@ export async function analizarNino(ninoId) {
 
   for (const [motivo, evaluacion] of Object.entries(evaluaciones)) {
     if (evaluacion.activa) {
-      const yaExiste = await existeAlertaActiva(ninoId, motivo);
+      const alertaExistente = await buscarAlertaActiva(ninoId, motivo);
 
-      if (!yaExiste) {
+      if (!alertaExistente) {
         const alertaCreada = await Alerta.create({
           nino: ninoId,
           tipo: evaluacion.tipo,
@@ -148,6 +177,13 @@ export async function analizarNino(ninoId) {
         creadas.push(alertaCreada);
 
         await notificarAlertaNueva(alertaCreada);
+      } else if (
+        alertaExistente.tipo !== evaluacion.tipo ||
+        alertaExistente.mensaje !== evaluacion.mensaje
+      ) {
+        alertaExistente.tipo = evaluacion.tipo;
+        alertaExistente.mensaje = evaluacion.mensaje;
+        await alertaExistente.save();
       }
     } else {
       const resultado = await Alerta.updateMany(

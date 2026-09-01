@@ -4,44 +4,7 @@ import Vacunacion from '../models/Vacunacion.js';
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
 import Alerta from '../models/Alerta.js';
 import { enviarMensajeTelegram, enviarFotoTelegram } from '../services/telegramService.js';
-
-async function generarCodigoUnico() {
-  let codigo;
-  let existe = true;
-
-  while (existe) {
-    const numero = Math.floor(1000 + Math.random() * 9000);
-    codigo = `CS-${numero}`;
-    existe = await Nino.findOne({ codigoCarnet: codigo });
-  }
-
-  return codigo;
-}
-
-function obtenerOrigenFrontend(req) {
-  const origenConfigurado = process.env.FRONTEND_URL?.trim();
-
-  if (origenConfigurado) {
-    return origenConfigurado.replace(/\/$/, '');
-  }
-
-  const protocolo = req.get('x-forwarded-proto')?.split(',')[0].trim() || req.protocol;
-  const host = req.get('x-forwarded-host')?.split(',')[0].trim() || req.get('host');
-
-  if (!host) {
-    return 'http://localhost:5173';
-  }
-
-  const origen = new URL(`${protocolo}://${host}`);
-
-  // Cuando se accede directamente al backend durante el desarrollo por LAN,
-  // el frontend de Vite utiliza la misma IP pero el puerto 5173.
-  if (origen.port === String(process.env.PORT || 5000)) {
-    origen.port = '5173';
-  }
-
-  return origen.origin;
-}
+import { asegurarCredencialesCarnet } from '../services/carnetService.js';
 
 export async function generarCarnet(req, res) {
   try {
@@ -51,18 +14,9 @@ export async function generarCarnet(req, res) {
       return res.status(404).json({ mensaje: 'Niño no encontrado' });
     }
 
-    if (!nino.codigoCarnet) {
-      nino.codigoCarnet = await generarCodigoUnico();
-    }
-
-    if (!nino.pin) {
-      nino.pin = Math.floor(1000 + Math.random() * 9000).toString();
-    }
-
-    const urlCarnet = `${obtenerOrigenFrontend(req)}/carnet/${nino.codigoCarnet}`;
+    const urlCarnet = await asegurarCredencialesCarnet(nino, req);
     const qrDataUrl = await QRCode.toDataURL(urlCarnet);
 
-    nino.codigoQR = urlCarnet;
     await nino.save();
 
     return res.status(200).json({
@@ -85,18 +39,9 @@ export async function enviarCarnetTelegram(req, res) {
       return res.status(404).json({ mensaje: 'Niño no encontrado' });
     }
 
-    if (!nino.codigoCarnet) {
-      nino.codigoCarnet = await generarCodigoUnico();
-    }
-
-    if (!nino.pin) {
-      nino.pin = Math.floor(1000 + Math.random() * 9000).toString();
-    }
-
-    const urlCarnet = `${obtenerOrigenFrontend(req)}/carnet/${nino.codigoCarnet}`;
+    const urlCarnet = await asegurarCredencialesCarnet(nino, req);
     const qrDataUrl = await QRCode.toDataURL(urlCarnet);
 
-    nino.codigoQR = urlCarnet;
     await nino.save();
 
     const padresConTelegram = (nino.padres || []).filter(
@@ -200,8 +145,17 @@ export async function armarExpediente(ninoId) {
       peso: registro.peso,
       talla: registro.talla,
       edadMeses: registro.edadMeses,
+      edadMesesExacta: registro.edadMesesExacta,
+      imc: registro.imc,
+      zPesoEdad: registro.zPesoEdad,
+      zTallaEdad: registro.zTallaEdad,
+      zImcEdad: registro.zImcEdad,
       percentilPeso: registro.percentilPeso,
       percentilTalla: registro.percentilTalla,
+      percentilImc: registro.percentilImc,
+      estadoNutricional: registro.estadoNutricional,
+      estadoTalla: registro.estadoTalla,
+      referenciaOms: registro.referenciaOms,
     })),
     alertasActivas,
   };

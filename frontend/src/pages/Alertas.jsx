@@ -42,6 +42,7 @@ const RUTA_POR_MOTIVO = {
   sin_registros: '/crecimiento',
   desnutricion: '/crecimiento',
   sobrepeso: '/crecimiento',
+  vacuna_proxima: '/vacunacion',
   vacuna_atrasada: '/vacunacion',
 };
 
@@ -49,6 +50,7 @@ const ETIQUETAS_MOTIVO = {
   desnutricion: 'Desnutrición',
   sobrepeso: 'Sobrepeso',
   sin_registros: 'Sin controles',
+  vacuna_proxima: 'Vacuna mañana',
   vacuna_atrasada: 'Vacuna atrasada',
 };
 
@@ -82,6 +84,8 @@ export default function Alertas() {
   };
 
   useEffect(() => {
+    // Sincroniza la vista inicial con las alertas almacenadas en la API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarAlertas();
   }, []);
 
@@ -360,13 +364,17 @@ export default function Alertas() {
                 Motivos
               </Typography>
               <Typography variant="body2">
-                <b>Desnutrición:</b> percentil de peso muy bajo (&lt;5).
+                <b>Desnutrición:</b> IMC para la edad por debajo del estándar OMS.
               </Typography>
               <Typography variant="body2">
-                <b>Sobrepeso:</b> percentil de peso alto (&gt;95).
+                <b>Sobrepeso:</b> riesgo de sobrepeso, sobrepeso u obesidad según IMC/edad OMS.
               </Typography>
               <Typography variant="body2">
-                <b>Sin controles:</b> más de 3 meses sin medición de crecimiento.
+                <b>Sin controles:</b> un mes sin medición en menores de 2 años o tres meses
+                desde los 2 años.
+              </Typography>
+              <Typography variant="body2">
+                <b>Vacuna mañana:</b> aviso enviado un día antes de la dosis programada.
               </Typography>
               <Typography variant="body2">
                 <b>Vacuna atrasada:</b> dosis pendiente cuya fecha ya venció.

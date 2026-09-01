@@ -99,7 +99,7 @@ export async function enviarAlertaEmail(padre, nino, alerta) {
   );
   const nombreNino = escaparHtml(nino.nombreCompleto || 'su hijo/a');
   const mensaje = escaparHtml(alerta.mensaje || 'Hay información de salud pendiente de revisar.');
-  const esVacuna = alerta.motivo === 'vacuna_atrasada';
+  const esVacuna = ['vacuna_proxima', 'vacuna_atrasada'].includes(alerta.motivo);
   const esCritica = alerta.tipo === 'critica';
   const asunto = esVacuna
     ? `Recordatorio de vacunación de ${nino.nombreCompleto}`

@@ -16,7 +16,9 @@ import notificacionRoutes from './routes/notificacionRoutes.js';
 import carnetRoutes from './routes/carnetRoutes.js';
 import campanaRoutes from './routes/campanaRoutes.js';
 import usuarioRoutes from './routes/usuarioRoutes.js';
+import reporteRoutes from './routes/reporteRoutes.js';
 import { iniciarPolling } from './services/telegramBot.js';
+import { iniciarProgramadorAlertas } from './services/alertaScheduler.js';
 
 dotenv.config({ path: fileURLToPath(new URL('./.env', import.meta.url)) });
 
@@ -39,6 +41,7 @@ app.use('/api/notificaciones', notificacionRoutes);
 app.use('/api/carnet', carnetRoutes);
 app.use('/api/campanas', campanaRoutes);
 app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/reportes', reporteRoutes);
 
 app.get('/', (req, res) => {
   res.json({ mensaje: 'API SCCVI funcionando' });
@@ -50,6 +53,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ Conectado a MongoDB');
     app.listen(PORT, () => console.log(`🚀 Servidor en http://localhost:${PORT}`));
+    iniciarProgramadorAlertas();
 
     if (process.env.TELEGRAM_BOT_TOKEN) {
       iniciarPolling();

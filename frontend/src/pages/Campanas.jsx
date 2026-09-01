@@ -43,6 +43,10 @@ import DialogoEliminar from '../components/DialogoEliminar.jsx';
 const FORM_INICIAL = {
   nombre: '',
   descripcion: '',
+  tipoCampana: 'jornada_vacunacion',
+  edadMinimaAnios: '',
+  edadMaximaAnios: '',
+  estadoVacunacion: 'todos',
   alcance: 'municipio',
   departamento: '',
   municipio: '',
@@ -60,6 +64,19 @@ const ETIQUETAS_ALCANCE = {
   departamento: 'Todo el departamento',
   municipio: 'Todo el municipio',
   comunidad: 'Comunidad / aldea específica',
+};
+
+const ETIQUETAS_TIPO = {
+  jornada_vacunacion: 'Jornada de vacunación',
+  control_medico: 'Control médico',
+  otro: 'Otra actividad',
+};
+
+const ETIQUETAS_VACUNACION = {
+  todos: 'Cualquier estado de vacunación',
+  al_dia: 'Vacunación al día',
+  atrasada: 'Vacunación atrasada',
+  sin_esquema: 'Sin esquema registrado',
 };
 
 function fechaActualLocal() {
@@ -93,6 +110,16 @@ function resumenNotificacion(campana) {
   return `Email: ${campana.correosEnviados || 0} · Telegram: ${campana.telegramEnviados || 0}`;
 }
 
+function resumenSegmentacion(campana) {
+  const minimo = campana.edadMinimaAnios === '' ? null : campana.edadMinimaAnios;
+  const maximo = campana.edadMaximaAnios === '' ? null : campana.edadMaximaAnios;
+  let edad = 'Todas las edades';
+  if (minimo != null && maximo != null) edad = `${minimo}–${maximo} años`;
+  else if (minimo != null) edad = `Desde ${minimo} años`;
+  else if (maximo != null) edad = `Hasta ${maximo} años`;
+  return `${edad} · ${ETIQUETAS_VACUNACION[campana.estadoVacunacion] || ETIQUETAS_VACUNACION.todos}`;
+}
+
 export default function Campanas() {
   const { usuario } = useAuth();
   const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
@@ -110,6 +137,9 @@ export default function Campanas() {
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(FORM_INICIAL);
   const [campanaAEnviar, setCampanaAEnviar] = useState(null);
+  const [destinatarios, setDestinatarios] = useState(null);
+  const [cargandoDestinatarios, setCargandoDestinatarios] = useState(false);
+  const [errorDestinatarios, setErrorDestinatarios] = useState('');
   const [eliminacion, setEliminacion] = useState({ abierto: false, elemento: null });
   const [eliminando, setEliminando] = useState(false);
 
@@ -186,6 +216,10 @@ export default function Campanas() {
     setForm({
       nombre: campana.nombre || '',
       descripcion: campana.descripcion || '',
+      tipoCampana: campana.tipoCampana || 'jornada_vacunacion',
+      edadMinimaAnios: campana.edadMinimaAnios ?? '',
+      edadMaximaAnios: campana.edadMaximaAnios ?? '',
+      estadoVacunacion: campana.estadoVacunacion || 'todos',
       alcance: campana.alcance || 'municipio',
       departamento: campana.departamento || '',
       municipio: campana.municipio || '',
@@ -204,6 +238,17 @@ export default function Campanas() {
 
   const validarFormulario = () => {
     if (!form.nombre.trim()) return 'El nombre de la campaña es obligatorio';
+    const edadMinima = form.edadMinimaAnios === '' ? null : Number(form.edadMinimaAnios);
+    const edadMaxima = form.edadMaximaAnios === '' ? null : Number(form.edadMaximaAnios);
+    if (edadMinima != null && (!Number.isInteger(edadMinima) || edadMinima < 0 || edadMinima > 19)) {
+      return 'La edad mínima debe ser un número entero entre 0 y 19';
+    }
+    if (edadMaxima != null && (!Number.isInteger(edadMaxima) || edadMaxima < 0 || edadMaxima > 19)) {
+      return 'La edad máxima debe ser un número entero entre 0 y 19';
+    }
+    if (edadMinima != null && edadMaxima != null && edadMinima > edadMaxima) {
+      return 'La edad mínima no puede ser mayor que la máxima';
+    }
     if (!form.departamento) return 'Seleccione un departamento';
     if (form.alcance !== 'departamento' && !form.municipio) {
       return 'Seleccione un municipio';
@@ -263,6 +308,23 @@ export default function Campanas() {
     }
   };
 
+  const abrirEnvio = async (campana) => {
+    setCampanaAEnviar(campana);
+    setDestinatarios(null);
+    setErrorDestinatarios('');
+    setCargandoDestinatarios(true);
+    try {
+      const respuesta = await api.get(`/campanas/${campana._id}/destinatarios`);
+      setDestinatarios(respuesta.data);
+    } catch (errorVistaPrevia) {
+      setErrorDestinatarios(
+        errorVistaPrevia.response?.data?.mensaje || 'No se pudieron calcular los destinatarios'
+      );
+    } finally {
+      setCargandoDestinatarios(false);
+    }
+  };
+
   const confirmarEliminar = async () => {
     if (!eliminacion.elemento) return;
     setEliminando(true);
@@ -281,6 +343,16 @@ export default function Campanas() {
   const comunidadSeleccionada = comunidades.find(({ _id }) => _id === form.comunidad);
   const camposConfirmacion = [
     { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
+    {
+      label: 'Tipo',
+      valor: ETIQUETAS_TIPO[form.tipoCampana],
+      valorAnterior: editando ? ETIQUETAS_TIPO[editando.tipoCampana] : undefined,
+    },
+    {
+      label: 'Edad objetivo',
+      valor: resumenSegmentacion(form),
+      valorAnterior: editando ? resumenSegmentacion(editando) : undefined,
+    },
     {
       label: 'Alcance',
       valor: ETIQUETAS_ALCANCE[form.alcance],
@@ -315,7 +387,7 @@ export default function Campanas() {
             </IconButton>
           </Tooltip>
           <Tooltip title="Notificar por Email y Telegram">
-            <IconButton color="info" onClick={() => setCampanaAEnviar(campana)}>
+            <IconButton color="info" onClick={() => abrirEnvio(campana)}>
               <SendIcon />
             </IconButton>
           </Tooltip>
@@ -419,8 +491,14 @@ export default function Campanas() {
                       <TableRow key={campana._id} hover>
                         <TableCell>
                           <Typography fontWeight={600}>{campana.nombre}</Typography>
+                          <Typography variant="caption" color="primary.main" display="block">
+                            {ETIQUETAS_TIPO[campana.tipoCampana] || ETIQUETAS_TIPO.otro}
+                          </Typography>
                           <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 260 }}>
                             {campana.descripcion}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {resumenSegmentacion(campana)}
                           </Typography>
                         </TableCell>
                         <TableCell>{destinoCampana(campana)}</TableCell>
@@ -466,6 +544,12 @@ export default function Campanas() {
                         {campana.descripcion}
                       </Typography>
                       <Stack spacing={0.5} sx={{ mt: 2 }}>
+                        <Typography variant="body2">
+                          <b>Tipo:</b> {ETIQUETAS_TIPO[campana.tipoCampana] || ETIQUETAS_TIPO.otro}
+                        </Typography>
+                        <Typography variant="body2">
+                          <b>Segmentación:</b> {resumenSegmentacion(campana)}
+                        </Typography>
                         <Typography variant="body2"><b>Lugar:</b> {destinoCampana(campana)}</Typography>
                         <Typography variant="body2"><b>Fecha:</b> {formatearFecha(campana.fechaRealizacion)}</Typography>
                         <Typography variant="body2">
@@ -501,6 +585,16 @@ export default function Campanas() {
               onChange={(event) => setForm({ ...form, nombre: event.target.value })}
               placeholder="Ej. Jornada de vacunación"
             />
+            <TextField
+              select
+              label="Tipo de campaña"
+              value={form.tipoCampana}
+              onChange={(event) => setForm({ ...form, tipoCampana: event.target.value })}
+            >
+              <MenuItem value="jornada_vacunacion">Jornada de vacunación</MenuItem>
+              <MenuItem value="control_medico">Control médico</MenuItem>
+              <MenuItem value="otro">Otra actividad</MenuItem>
+            </TextField>
             <TextField
               select
               label="Alcance"
@@ -554,15 +648,57 @@ export default function Campanas() {
                 noOptionsText="No hay comunidades activas en este municipio"
               />
             )}
+            <Typography variant="subtitle2" sx={{ pt: 1 }}>
+              Segmentación de familias
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Edad mínima (años)"
+                type="number"
+                fullWidth
+                value={form.edadMinimaAnios}
+                onChange={(event) => setForm({ ...form, edadMinimaAnios: event.target.value })}
+                inputProps={{ min: 0, max: 19, step: 1 }}
+                helperText="Vacío: sin mínimo"
+              />
+              <TextField
+                label="Edad máxima (años)"
+                type="number"
+                fullWidth
+                value={form.edadMaximaAnios}
+                onChange={(event) => setForm({ ...form, edadMaximaAnios: event.target.value })}
+                inputProps={{ min: 0, max: 19, step: 1 }}
+                helperText="Incluye todo el año indicado"
+              />
+            </Stack>
             <TextField
-              label="Fecha a realizar"
-              type="date"
-              required
-              value={form.fechaRealizacion}
-              onChange={(event) => setForm({ ...form, fechaRealizacion: event.target.value })}
-              InputLabelProps={{ shrink: true }}
-              inputProps={{ min: editando ? undefined : fechaActualLocal() }}
-            />
+              select
+              label="Estado de vacunación"
+              value={form.estadoVacunacion}
+              onChange={(event) => setForm({ ...form, estadoVacunacion: event.target.value })}
+              helperText="Se incluirá al padre si al menos uno de sus niños cumple los filtros."
+            >
+              <MenuItem value="todos">Cualquier estado</MenuItem>
+              <MenuItem value="al_dia">Vacunación al día</MenuItem>
+              <MenuItem value="atrasada">Vacunación atrasada</MenuItem>
+              <MenuItem value="sin_esquema">Sin esquema registrado</MenuItem>
+            </TextField>
+            <Box>
+              <Typography component="label" variant="body2" sx={{ display: 'block', mb: 0.75 }}>
+                Fecha a realizar *
+              </Typography>
+              <TextField
+                type="date"
+                required
+                fullWidth
+                value={form.fechaRealizacion}
+                onChange={(event) => setForm({ ...form, fechaRealizacion: event.target.value })}
+                inputProps={{
+                  min: editando ? undefined : fechaActualLocal(),
+                  'aria-label': 'Fecha a realizar',
+                }}
+              />
+            </Box>
             <TextField
               label="Descripción o mensaje"
               required
@@ -591,9 +727,9 @@ export default function Campanas() {
         onConfirmar={guardar}
       />
 
-      <Dialog open={Boolean(campanaAEnviar)} onClose={enviando ? undefined : () => setCampanaAEnviar(null)} fullWidth maxWidth="xs">
+      <Dialog open={Boolean(campanaAEnviar)} onClose={enviando ? undefined : () => setCampanaAEnviar(null)} fullWidth maxWidth="sm">
         <DialogTitle>¿Notificar esta campaña?</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ overflowX: 'hidden' }}>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <CampaignIcon color="primary" sx={{ fontSize: 54 }} />
@@ -603,9 +739,43 @@ export default function Campanas() {
               <b>{campanaAEnviar ? destinoCampana(campanaAEnviar) : ''}</b>, utilizando los
               métodos de contacto que cada uno eligió.
             </Typography>
+            {campanaAEnviar && (
+              <Alert severity="info" icon={<CampaignIcon />}>
+                <b>{ETIQUETAS_TIPO[campanaAEnviar.tipoCampana] || ETIQUETAS_TIPO.otro}</b>
+                <br />
+                {resumenSegmentacion(campanaAEnviar)}
+              </Alert>
+            )}
+            {cargandoDestinatarios && (
+              <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center">
+                <CircularProgress size={22} />
+                <Typography>Calculando destinatarios…</Typography>
+              </Stack>
+            )}
+            {errorDestinatarios && <Alert severity="error">{errorDestinatarios}</Alert>}
+            {destinatarios && (
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Vista previa de destinatarios
+                </Typography>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <Chip label={`${destinatarios.totalNinos} niños coinciden`} />
+                  <Chip color="primary" label={`${destinatarios.totalPadres} padres únicos`} />
+                  <Chip variant="outlined" label={`${destinatarios.correos} correos`} />
+                  <Chip variant="outlined" label={`${destinatarios.telegram} chats Telegram`} />
+                </Stack>
+                {destinatarios.padresExcluidos > 0 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    {destinatarios.padresExcluidos} de {destinatarios.totalPadresUbicacion} padres
+                    de la localidad quedaron fuera porque no tienen un niño asociado que cumpla
+                    la edad o el estado de vacunación seleccionado.
+                  </Typography>
+                )}
+              </Paper>
+            )}
             <Alert severity="info">
-              Solo se incluirán padres de la ubicación seleccionada. Cada correo y cada chat de
-              Telegram recibirán un único aviso.
+              Solo se incluirán familias que cumplan ubicación, edad y estado de vacunación.
+              Cada correo y cada chat de Telegram recibirán un único aviso.
             </Alert>
           </Stack>
         </DialogContent>
@@ -615,7 +785,12 @@ export default function Campanas() {
             variant="contained"
             startIcon={enviando ? <CircularProgress size={18} color="inherit" /> : <SendIcon />}
             onClick={enviarCampana}
-            disabled={enviando}
+            disabled={
+              enviando ||
+              cargandoDestinatarios ||
+              Boolean(errorDestinatarios) ||
+              !destinatarios?.totalPadres
+            }
           >
             Enviar avisos
           </Button>

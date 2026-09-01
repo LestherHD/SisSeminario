@@ -4,6 +4,18 @@ const campanaSchema = new mongoose.Schema(
   {
     nombre: { type: String, required: true, trim: true },
     descripcion: { type: String, required: true, trim: true },
+    tipoCampana: {
+      type: String,
+      enum: ['jornada_vacunacion', 'control_medico', 'otro'],
+      default: 'jornada_vacunacion',
+    },
+    edadMinimaAnios: { type: Number, min: 0, max: 19, default: null },
+    edadMaximaAnios: { type: Number, min: 0, max: 19, default: null },
+    estadoVacunacion: {
+      type: String,
+      enum: ['todos', 'al_dia', 'atrasada', 'sin_esquema'],
+      default: 'todos',
+    },
     alcance: {
       type: String,
       enum: ['departamento', 'municipio', 'comunidad'],

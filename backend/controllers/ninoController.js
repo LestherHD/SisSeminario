@@ -1,4 +1,5 @@
 import Nino from '../models/Nino.js';
+import { crearCredencialesCarnet } from '../services/carnetService.js';
 
 export async function crear(req, res) {
   try {
@@ -14,6 +15,7 @@ export async function crear(req, res) {
       padres,
     } = req.body;
 
+    const credencialesCarnet = await crearCredencialesCarnet(req);
     const nino = await Nino.create({
       primerNombre,
       segundoNombre,
@@ -24,6 +26,7 @@ export async function crear(req, res) {
       sexo,
       comunidad,
       padres,
+      ...credencialesCarnet,
     });
 
     return res.status(201).json(nino);

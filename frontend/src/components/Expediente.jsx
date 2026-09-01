@@ -18,7 +18,10 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { etiquetaPercentil, etiquetaPercentilTalla } from '../utils/percentiles.js';
+import {
+  etiquetaEstadoNutricional,
+  etiquetaEstadoTalla,
+} from '../utils/percentiles.js';
 
 const OPCIONES_PERIODO = [
   { valor: 'todo', etiqueta: 'Todo' },
@@ -169,29 +172,42 @@ export default function Expediente({
                 <TableCell>Fecha</TableCell>
                 <TableCell>Peso (kg)</TableCell>
                 <TableCell>Talla (cm)</TableCell>
-                <TableCell>Percentil de peso</TableCell>
-                <TableCell>Percentil de talla</TableCell>
+                <TableCell>IMC / nutrición OMS</TableCell>
+                <TableCell>Talla para edad OMS</TableCell>
+                <TableCell>Referencia</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {crecimientoFiltrado.length > 0 ? (
                 crecimientoFiltrado.map((medicion, indice) => {
-                  const peso = etiquetaPercentil(medicion.percentilPeso);
-                  const talla = etiquetaPercentilTalla(medicion.percentilTalla);
+                  const nutricion = etiquetaEstadoNutricional(
+                    medicion.estadoNutricional,
+                    medicion.percentilImc
+                  );
+                  const talla = etiquetaEstadoTalla(
+                    medicion.estadoTalla,
+                    medicion.percentilTalla
+                  );
 
                   return (
                     <TableRow key={medicion._id || `${medicion.fecha}-${indice}`}>
                       <TableCell>{formatearFecha(medicion.fecha)}</TableCell>
                       <TableCell>{medicion.peso ?? '—'}</TableCell>
                       <TableCell>{medicion.talla ?? '—'}</TableCell>
-                      <TableCell><Chip size="small" color={peso.color} label={peso.texto} /></TableCell>
+                      <TableCell>
+                        <Stack spacing={0.5} alignItems="flex-start">
+                          <Chip size="small" color={nutricion.color} label={nutricion.texto} />
+                          <Typography variant="caption">IMC: {medicion.imc ?? '—'}</Typography>
+                        </Stack>
+                      </TableCell>
                       <TableCell><Chip size="small" color={talla.color} label={talla.texto} /></TableCell>
+                      <TableCell>{medicion.referenciaOms || 'Pendiente de recalcular'}</TableCell>
                     </TableRow>
                   );
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={6} align="center">
                     Sin mediciones para el periodo seleccionado
                   </TableCell>
                 </TableRow>

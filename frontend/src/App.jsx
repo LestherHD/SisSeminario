@@ -13,6 +13,7 @@ import Vacunacion from './pages/Vacunacion.jsx';
 import Alertas from './pages/Alertas.jsx';
 import Campanas from './pages/Campanas.jsx';
 import Usuarios from './pages/Usuarios.jsx';
+import Reportes from './pages/Reportes.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 function RutaPorRol({ usuario, roles, children }) {
@@ -60,6 +61,14 @@ function App() {
         <Route path="/vacunacion" element={<Vacunacion />} />
         <Route path="/alertas" element={<Alertas />} />
         <Route path="/campanas" element={<Campanas />} />
+        <Route
+          path="/reportes"
+          element={
+            <RutaPorRol usuario={usuario} roles={['admin', 'encargado']}>
+              <Reportes />
+            </RutaPorRol>
+          }
+        />
         <Route
           path="/usuarios"
           element={
