@@ -10,20 +10,26 @@ SCCVI permite registrar pacientes, padres o tutores, controles de crecimiento y 
 - CRUD de padres o tutores con métodos de contacto por Email y Telegram.
 - CRUD de niños, asociación con padres y comunidad, activación y borrado lógico.
 - Registro y edición de mediciones de peso y talla.
-- Historial y gráficas de evolución del crecimiento.
+- Cálculo de edad exacta en meses, puntajes Z y percentiles mediante referencias oficiales OMS 2006 y OMS 2007, según edad y sexo.
+- Historial y curvas de peso, talla e IMC contra percentiles pediátricos de referencia.
 - Registro de vacunas con dosis, volumen e intervalos en días, semanas o meses.
 - Control del esquema de vacunación y cálculo de próximas dosis.
-- Detección de alertas de crecimiento, falta de controles y vacunas atrasadas.
+- Detección de riesgos nutricionales, falta de controles, vacunas próximas y vacunas atrasadas.
+- Alertas preventivas y críticas, con análisis manual y ejecución automática diaria.
 - Envío de alertas mediante Email y Telegram.
-- Campañas dirigidas por departamento, municipio o comunidad específica.
+- Campañas dirigidas por departamento, municipio o comunidad, segmentadas por edad y estado de vacunación.
 - Carnet QR protegido con código y PIN.
+- Generación automática de código, PIN y QR al registrar al niño.
+- Vinculación única del padre con Telegram mediante DPI, revocable únicamente por administración.
 - Expediente público para padres y tutores en `/consultar`.
 - Expediente interno para el personal autorizado.
 - Dashboard analítico con indicadores de población, nutrición, vacunación y territorio.
+- Reportes de nutrición, vacunas incompletas, cobertura por comunidad y crecimiento promedio.
+- Exportación de reportes en PDF y Excel.
 - Recuperación de contraseña mediante código temporal enviado por correo.
 - Interfaz responsive para computadora, tableta y teléfono.
 
-> **Nota clínica:** los percentiles actuales son estimaciones orientativas. No deben presentarse como percentiles oficiales de la OMS ni sustituir la evaluación de personal de salud.
+> **Nota clínica:** el sistema utiliza tablas LMS oficiales de la OMS para calcular puntajes Z y percentiles. Sus resultados apoyan el seguimiento, pero no sustituyen el diagnóstico ni la evaluación de personal médico calificado.
 
 ## Tecnologías
 
@@ -38,6 +44,8 @@ SCCVI permite registrar pacientes, padres o tutores, controles de crecimiento y 
 - Telegram Bot API
 - express-rate-limit
 - QRCode
+- PDFKit
+- ExcelJS
 
 ### Frontend
 
@@ -54,9 +62,11 @@ SCCVI permite registrar pacientes, padres o tutores, controles de crecimiento y 
 sccvi/
 ├── backend/
 │   ├── controllers/
+│   ├── data/oms/
 │   ├── middleware/
 │   ├── models/
 │   ├── routes/
+│   ├── scripts/
 │   ├── services/
 │   ├── utils/
 │   └── server.js
@@ -101,6 +111,12 @@ TELEGRAM_BOT_TOKEN=token_del_bot
 
 BREVO_API_KEY=clave_de_brevo
 BREVO_REMITENTE=correo_remitente_verificado
+
+# URL pública del frontend utilizada en los enlaces y códigos QR.
+FRONTEND_URL=http://localhost:5173
+
+# Use false para desactivar el análisis automático diario de alertas.
+ALERTAS_AUTOMATICAS=true
 
 # Active únicamente cuando el backend esté detrás de un proxy confiable.
 TRUST_PROXY=false
@@ -162,6 +178,7 @@ La API utiliza el prefijo `/api`.
 | Dashboard | `/api/dashboard` |
 | Carnet y expediente | `/api/carnet` |
 | Campañas | `/api/campanas` |
+| Reportes y exportaciones | `/api/reportes` |
 | Usuarios | `/api/usuarios` |
 
 Las rutas privadas requieren el encabezado:
@@ -192,7 +209,33 @@ El bot permite enviar:
 
 Cada envío respeta los métodos de contacto elegidos por el padre o tutor.
 
+La vinculación comienza con `/start` y la confirmación del DPI. Un DPI solamente puede vincularse con un chat de Telegram y un chat solamente puede pertenecer a un padre o tutor. Si se necesita cambiar la cuenta, un administrador debe revocar primero la vinculación desde el módulo de padres.
+
 Las campañas filtran primero las comunidades correspondientes al departamento, municipio o aldea elegida. Por ello, una campaña para Sanarate no incluye destinatarios de otro municipio o departamento.
+
+## Crecimiento y alertas médicas
+
+- Menores de 5 años: referencias OMS 2006.
+- Desde los 5 años: referencias OMS 2007 disponibles para los indicadores implementados.
+- Evaluación por edad exacta en meses y sexo.
+- Curvas de peso para la edad, talla para la edad e IMC para la edad.
+- Líneas de referencia P3, P15, P50, P85 y P97.
+- Menores de 2 años: control recomendado mensual.
+- De 2 a 5 años: control recomendado trimestral.
+- Aviso preventivo un día antes de una dosis programada y alerta cuando la fecha ya venció.
+
+El programador analiza las reglas una vez al día. También puede ejecutarse manualmente desde el módulo **Alertas**.
+
+## Reportes
+
+Los usuarios `admin` y `encargado` pueden consultar y exportar:
+
+- Niños con bajo peso, sobrepeso u obesidad.
+- Vacunas incompletas.
+- Cobertura de vacunación por comunidad.
+- Crecimiento promedio por región y comunidad.
+
+Los resultados pueden filtrarse por departamento, municipio y comunidad, y descargarse como PDF o libro de Excel `.xlsx`.
 
 ## Seguridad
 
@@ -207,6 +250,7 @@ Las campañas filtran primero las comunidades correspondientes al departamento, 
 - Recuperación mediante código de seis dígitos, con vencimiento e intentos máximos.
 - Consulta pública del carnet protegida por código y PIN.
 - Rate limiting para login, recuperación y consulta del carnet.
+- Vinculación única entre DPI y chat de Telegram, con revocación administrativa.
 - Respuestas de recuperación que no revelan si un correo está registrado.
 - Variables sensibles separadas mediante `.env`.
 
@@ -241,6 +285,13 @@ El backend utiliza módulos ES. Para comprobar un archivo individual:
 node --check server.js
 ```
 
+Si existen mediciones creadas antes de incorporar las tablas OMS, pueden recalcularse con:
+
+```bash
+cd backend
+npm run recalcular:oms
+```
+
 ## Consideraciones para producción
 
 Antes de publicar el sistema se debe:
@@ -267,8 +318,9 @@ El proyecto cubre el MVP definido:
 
 También incluye más de dos características avanzadas:
 
-- Carnet QR protegido.
-- Integración con Telegram.
-- Dashboard analítico.
+- Percentiles y puntajes Z calculados con referencias oficiales OMS 2006/2007.
+- Carnet QR protegido con código, PIN y control de intentos.
+- Integración funcional con Telegram y vinculación única del padre.
+- Dashboard analítico y reportes exportables en PDF y Excel.
 
-Los percentiles oficiales OMS y una infraestructura cloud de alta disponibilidad pueden incorporarse como mejoras posteriores.
+La integración con WhatsApp no forma parte del alcance implementado; la comunicación multicanal se cubre mediante Email y Telegram. La infraestructura cloud de alta disponibilidad, HTTPS y el dominio definitivo corresponden a la etapa de despliegue en producción.
