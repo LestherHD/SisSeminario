@@ -1,14 +1,23 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import api from '../services/api.js';
 
 const AuthContext = createContext();
+const TIEMPO_INACTIVIDAD_MS = 30 * 60 * 1000;
 
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const temporizadorInactividad = useRef(null);
+
+  const logout = useCallback(() => {
+    sessionStorage.removeItem('token');
+    setUsuario(null);
+  }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    // Elimina tokens persistentes creados por versiones anteriores.
+    localStorage.removeItem('token');
+    const token = sessionStorage.getItem('token');
 
     if (!token) {
       setCargando(false);
@@ -20,7 +29,7 @@ export function AuthProvider({ children }) {
         const response = await api.get('/auth/perfil');
         setUsuario(response.data.usuario);
       } catch (error) {
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
         setUsuario(null);
       } finally {
         setCargando(false);
@@ -30,16 +39,33 @@ export function AuthProvider({ children }) {
     cargarUsuario();
   }, []);
 
+  useEffect(() => {
+    if (!usuario) return undefined;
+
+    const reiniciarTemporizador = () => {
+      clearTimeout(temporizadorInactividad.current);
+      temporizadorInactividad.current = setTimeout(logout, TIEMPO_INACTIVIDAD_MS);
+    };
+
+    const eventosActividad = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    eventosActividad.forEach((evento) =>
+      window.addEventListener(evento, reiniciarTemporizador, { passive: true })
+    );
+    reiniciarTemporizador();
+
+    return () => {
+      clearTimeout(temporizadorInactividad.current);
+      eventosActividad.forEach((evento) =>
+        window.removeEventListener(evento, reiniciarTemporizador)
+      );
+    };
+  }, [logout, usuario]);
+
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', response.data.token);
+    sessionStorage.setItem('token', response.data.token);
     setUsuario(response.data.usuario);
     return response.data.usuario;
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUsuario(null);
   };
 
   return (
