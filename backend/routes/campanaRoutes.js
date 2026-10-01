@@ -11,6 +11,23 @@ import { autorizar, proteger } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /api/campanas:
+ *   get:
+ *     tags: [Campañas]
+ *     summary: Listar campañas comunitarias
+ *     description: Disponible para cualquier usuario autenticado. Incluye campañas activas con comunidad y estado temporal calculado en Guatemala.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: Arreglo de campañas con estado proxima, en_curso o finalizada.
+ *       '401':
+ *         description: Sesión no válida.
+ *       '500':
+ *         description: Error del servidor.
+ */
 router.get('/', proteger, listar);
 router.get('/:id/destinatarios', proteger, previsualizarDestinatarios);
 router.post('/', proteger, autorizar('admin', 'encargado'), crear);

@@ -12,6 +12,29 @@ import { proteger, autorizar } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /api/padres:
+ *   get:
+ *     tags: [Padres]
+ *     summary: Listar padres y tutores
+ *     description: Disponible para cualquier usuario autenticado; incluye la comunidad poblada.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: incluirInactivos
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *     responses:
+ *       '200':
+ *         description: Arreglo de padres y tutores.
+ *       '401':
+ *         description: Sesión no válida.
+ *       '500':
+ *         description: Error del servidor.
+ */
 router.get('/', proteger, listar);
 router.get('/:id', proteger, obtenerPorId);
 router.post('/', proteger, autorizar('admin', 'encargado', 'personal'), crear);

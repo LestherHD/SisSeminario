@@ -2,6 +2,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './config/swagger.js';
 import { fileURLToPath } from 'node:url';
 import authRoutes from './routes/authRoutes.js';
 import comunidadRoutes from './routes/comunidadRoutes.js';
@@ -42,6 +44,7 @@ app.use('/api/carnet', carnetRoutes);
 app.use('/api/campanas', campanaRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/reportes', reporteRoutes);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/', (req, res) => {
   res.json({ mensaje: 'API SCCVI funcionando' });
