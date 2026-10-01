@@ -3,6 +3,8 @@ import Nino from '../models/Nino.js';
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
 import Vacuna from '../models/Vacuna.js';
 import Vacunacion from '../models/Vacunacion.js';
+import { opcionesReporte, normalizarEstado, ESTADOS } from './reporteOpciones.js';
+import { construirTablas } from './reporteTablas.js';
 
 const MS_ANIO = 365.2425 * 86400000;
 
@@ -44,28 +46,34 @@ function filtrosUbicacion(query) {
 }
 
 export async function generarDatosReporte(query = {}) {
+  const opciones = opcionesReporte(query);
+  const { filtros } = opciones;
   const hoy = new Date();
-  const comunidades = await Comunidad.find(filtrosUbicacion(query))
+  const comunidades = await Comunidad.find(filtrosUbicacion(filtros))
     .select('nombre departamento municipio')
     .sort({ departamento: 1, municipio: 1, nombre: 1 })
     .lean();
   const idsComunidades = comunidades.map(({ _id }) => _id);
   const comunidadesPorId = new Map(comunidades.map((item) => [String(item._id), item]));
 
-  const ninos = idsComunidades.length
-    ? await Nino.find({ activo: true, comunidad: { $in: idsComunidades } })
+  let ninos = idsComunidades.length
+    ? await Nino.find({ activo: true, comunidad: { $in: idsComunidades }, ...(filtros.sexo ? { sexo: filtros.sexo } : {}) })
       .select('nombreCompleto fechaNacimiento sexo comunidad')
       .sort({ nombreCompleto: 1 })
       .lean()
     : [];
+  ninos = ninos.filter((nino) => {
+    const edad = (hoy - new Date(nino.fechaNacimiento)) / MS_ANIO;
+    return (filtros.edadMin == null || edad >= filtros.edadMin) && (filtros.edadMax == null || edad < filtros.edadMax + 1);
+  });
   const idsNinos = ninos.map(({ _id }) => _id);
 
   const [crecimientos, vacunas, aplicaciones] = await Promise.all([
     RegistroCrecimiento.find({ activo: true, nino: { $in: idsNinos } })
       .sort({ fecha: -1 })
       .lean(),
-    Vacuna.find({ activo: true }).select('nombre rangoEdad numeroDosis').lean(),
-    Vacunacion.find({ activo: true, nino: { $in: idsNinos } })
+    query.soloConteo === true ? [] : Vacuna.find({ activo: true }).select('nombre rangoEdad numeroDosis').lean(),
+    query.soloConteo === true ? [] : Vacunacion.find({ activo: true, nino: { $in: idsNinos } })
       .select('nino vacuna numeroDosis fechaAplicada proximaDosis')
       .sort({ fechaAplicada: -1 })
       .lean(),
@@ -76,6 +84,10 @@ export async function generarDatosReporte(query = {}) {
     const clave = String(registro.nino);
     if (!ultimoCrecimiento.has(clave)) ultimoCrecimiento.set(clave, registro);
   }
+  if (filtros.estadoNutricional.length) {
+    ninos = ninos.filter((nino) => filtros.estadoNutricional.includes(normalizarEstado(ultimoCrecimiento.get(String(nino._id))?.estadoNutricional)));
+  }
+  if (query.soloConteo === true) return { ninos: ninos.length };
 
   const aplicacionesPorNinoVacuna = aplicaciones.reduce((mapa, aplicacion) => {
     const clave = `${aplicacion.nino}:${aplicacion.vacuna}`;
@@ -85,11 +97,15 @@ export async function generarDatosReporte(query = {}) {
   }, new Map());
 
   const riesgosNutricionales = [];
+  const listadoNutricional = [];
   const vacunasIncompletas = [];
   const coberturaPorComunidad = new Map();
   const crecimientoPorComunidad = new Map();
+  const comunidadesSeleccionadas = new Set(ninos.map((nino) => String(nino.comunidad)));
+  const filtraPoblacion = filtros.sexo || filtros.edadMin != null || filtros.edadMax != null || filtros.estadoNutricional.length;
+  const comunidadesReporte = filtraPoblacion ? comunidades.filter((comunidad) => comunidadesSeleccionadas.has(String(comunidad._id))) : comunidades;
 
-  for (const comunidad of comunidades) {
+  for (const comunidad of comunidadesReporte) {
     const datosBase = {
       comunidad: comunidad.nombre,
       municipio: comunidad.municipio,
@@ -122,6 +138,19 @@ export async function generarDatosReporte(query = {}) {
     const edadExacta = edadAnios(nino.fechaNacimiento, hoy);
     const edad = Math.floor(edadExacta);
     const crecimiento = ultimoCrecimiento.get(String(nino._id));
+    const detalle = {
+      id: String(nino._id), nino: nino.nombreCompleto, nombre: nino.nombreCompleto,
+      edad, sexo: nino.sexo, ...ubicacion,
+      comunidadId: String(nino.comunidad),
+      estadoNutricional: normalizarEstado(crecimiento?.estadoNutricional),
+      clasificacionNutricional: etiquetaNutricional(crecimiento?.estadoNutricional) || ESTADOS[normalizarEstado(crecimiento?.estadoNutricional)],
+      peso: crecimiento?.peso ?? null, talla: crecimiento?.talla ?? null,
+      imc: crecimiento?.imc ?? null, zPeso: crecimiento?.zPesoEdad ?? null, zImc: crecimiento?.zImcEdad ?? null,
+      fechaMedicion: crecimiento?.fecha ?? null, medido: Boolean(crecimiento),
+      dosisAplicadas: 0, dosisRequeridas: 0, vacunasPendientes: [], esquemaCompleto: false,
+    };
+    detalle.clasificacion = detalle.clasificacionNutricional;
+    listadoNutricional.push(detalle);
 
     if (crecimiento) {
       const clasificaciones = [];
@@ -167,11 +196,14 @@ export async function generarDatosReporte(query = {}) {
       const dosisAplicadas = Math.min(dosisRequeridas, registros.length);
       cobertura.dosisRequeridas += dosisRequeridas;
       cobertura.dosisAplicadas += dosisAplicadas;
+      detalle.dosisRequeridas += dosisRequeridas;
+      detalle.dosisAplicadas += dosisAplicadas;
 
       if (dosisAplicadas < dosisRequeridas) {
         esquemaCompleto = false;
         const ultima = registros[0];
         const atrasada = ultima?.proximaDosis && new Date(ultima.proximaDosis) < hoy;
+        detalle.vacunasPendientes.push(`${vacuna.nombre}: ${dosisAplicadas}/${dosisRequeridas} (${dosisAplicadas === 0 ? 'Sin iniciar' : atrasada ? 'Atrasada' : 'Incompleta'})`);
         vacunasIncompletas.push({
           nino: nino.nombreCompleto,
           edad,
@@ -185,6 +217,8 @@ export async function generarDatosReporte(query = {}) {
       }
     }
     if (esquemaCompleto) cobertura.esquemasCompletos += 1;
+    detalle.esquemaCompleto = esquemaCompleto;
+    detalle.vacunacion = detalle.vacunasPendientes.length ? detalle.vacunasPendientes.join('; ') : esquemaCompleto ? 'Esquema completo' : 'Sin vacunas aplicables por edad';
   }
 
   const coberturaVacunacion = Array.from(coberturaPorComunidad.values()).map((item) => ({
@@ -210,16 +244,13 @@ export async function generarDatosReporte(query = {}) {
     imcPromedio: item.ninosConMedicion ? redondear(item.sumaImc / item.ninosConMedicion, 2) : null,
   }));
 
-  return {
+  const datos = {
     generadoEn: hoy,
-    filtros: {
-      departamento: query.departamento?.trim() || '',
-      municipio: query.municipio?.trim() || '',
-      comunidad: query.comunidad?.trim() || '',
-    },
+    filtros,
+    opciones,
     resumen: {
       ninos: ninos.length,
-      comunidades: comunidades.length,
+      comunidades: comunidadesReporte.length,
       riesgosNutricionales: riesgosNutricionales.length,
       vacunasIncompletas: vacunasIncompletas.length,
     },
@@ -227,5 +258,14 @@ export async function generarDatosReporte(query = {}) {
     vacunasIncompletas,
     coberturaVacunacion,
     crecimientoPromedio,
+    listadoNutricional,
   };
+  const tablas = construirTablas(datos);
+  // Las solicitudes personalizadas solo devuelven las tablas y columnas elegidas.
+  // Se conservan los campos históricos para los clientes del reporte general.
+  return opciones.general ? { ...datos, tablas } : { generadoEn: hoy, filtros, opciones, coincidencias: ninos.length, tablas };
+}
+
+export async function contarNinosReporte(query = {}) {
+  return generarDatosReporte({ ...query, soloConteo: true });
 }

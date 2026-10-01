@@ -15,12 +15,36 @@ const router = express.Router();
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
+ *         name: departamento
+ *         schema: { type: string }
+ *         description: Nombre exacto del departamento; vacío equivale a todos.
+ *       - in: query
+ *         name: municipio
+ *         schema: { type: string }
+ *       - in: query
+ *         name: comunidad
+ *         schema: { type: string }
+ *         description: Nombre de comunidad, no ObjectId. Se combina con departamento y municipio.
+ *       - in: query
+ *         name: sexo
+ *         schema: { type: string, enum: [M, F] }
+ *       - in: query
+ *         name: edadMin
+ *         schema: { type: number, minimum: 0 }
+ *         description: Edad mínima incluida; año promedio de 365.2425 días.
+ *       - in: query
+ *         name: edadMax
+ *         schema: { type: number, minimum: 0 }
+ *         description: Incluye edades menores a edadMax más uno.
+ *       - in: query
  *         name: periodo
  *         schema:
  *           type: string
  *           enum: [mes, 3meses, 6meses, todo]
  *           default: mes
  *     responses:
+ *       '400':
+ *         description: Sexo o rango de edad inválidos, o filtros no escalares.
  *       '200':
  *         description: Totales, nutrición, vacunación, actividad, ubicaciones y alertas.
  *       '401':

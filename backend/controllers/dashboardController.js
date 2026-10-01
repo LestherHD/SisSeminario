@@ -27,18 +27,74 @@ export async function obtenerEstadisticas(req, res) {
       ? req.query.periodo
       : 'mes';
     const fechaInicio = obtenerFechaInicio(periodo);
-    const ninosActivos = await Nino.find({ activo: true }).select('_id sexo').lean();
+    // comunidad es el NOMBRE, no un ObjectId. Vacíos equivalen a no filtrar.
+    const filtros = {};
+    for (const campo of ['departamento', 'municipio', 'comunidad', 'sexo', 'edadMin', 'edadMax']) {
+      const valor = req.query[campo];
+      if (valor !== undefined && typeof valor !== 'string') {
+        return res.status(400).json({ mensaje: `Filtro inválido: ${campo}` });
+      }
+      filtros[campo] = valor?.trim() || '';
+    }
+    if (filtros.sexo && !['M', 'F'].includes(filtros.sexo)) {
+      return res.status(400).json({ mensaje: 'Sexo debe ser M o F.' });
+    }
+    for (const campo of ['edadMin', 'edadMax']) {
+      if (filtros[campo] !== '') {
+        filtros[campo] = Number(filtros[campo]);
+        if (!Number.isFinite(filtros[campo]) || filtros[campo] < 0) {
+          return res.status(400).json({ mensaje: 'Las edades deben ser números no negativos.' });
+        }
+      }
+    }
+    if (filtros.edadMin !== '' && filtros.edadMax !== '' && filtros.edadMin > filtros.edadMax) {
+      return res.status(400).json({ mensaje: 'La edad mínima no puede superar la máxima.' });
+    }
+    const hayFiltros = Object.values(filtros).some((valor) => valor !== '');
+    const filtroNinos = { activo: true };
+    if (filtros.departamento || filtros.municipio || filtros.comunidad) {
+      const filtroComunidades = { activo: true };
+      for (const campo of ['departamento', 'municipio']) {
+        if (filtros[campo]) filtroComunidades[campo] = filtros[campo];
+      }
+      if (filtros.comunidad) filtroComunidades.nombre = filtros.comunidad;
+      const comunidades = await Comunidad.find(filtroComunidades).select('_id').lean();
+      filtroNinos.comunidad = { $in: comunidades.map((item) => item._id) };
+    }
+    if (filtros.sexo) filtroNinos.sexo = filtros.sexo;
+    const ahora = new Date();
+    const anioMs = 365.2425 * 86400000;
+    if (filtros.edadMin !== '' || filtros.edadMax !== '') {
+      filtroNinos.fechaNacimiento = {};
+      if (filtros.edadMin !== '') {
+        filtroNinos.fechaNacimiento.$lte = new Date(ahora.getTime() - filtros.edadMin * anioMs);
+      }
+      if (filtros.edadMax !== '') {
+        filtroNinos.fechaNacimiento.$gt = new Date(ahora.getTime() - (filtros.edadMax + 1) * anioMs);
+      }
+      if (Object.values(filtroNinos.fechaNacimiento).some((fecha) => !Number.isFinite(fecha.getTime()))) {
+        return res.status(400).json({ mensaje: 'Rango de edad fuera de los límites admitidos.' });
+      }
+    }
+    const ninosActivos = await Nino.find(filtroNinos).select('_id sexo comunidad padres').lean();
+    const idsNinos = ninosActivos.map((nino) => nino._id);
+    const filtroRelacion = { nino: { $in: idsNinos } };
+    const filtroAlertas = { activo: true, atendida: false, ...filtroRelacion };
+    // Excepción de compatibilidad: sin filtros se conservan los totales del catálogo.
+    const idsComunidades = [...new Set(ninosActivos.map((nino) => nino.comunidad).filter(Boolean).map(String))];
+    const idsPadres = [...new Set(ninosActivos.flatMap((nino) => (nino.padres || []).map(String)))];
 
     const totales = {
       ninos: ninosActivos.length,
-      comunidades: await Comunidad.countDocuments({ activo: true }),
-      padres: await Padre.countDocuments({ activo: true }),
-      dosisAplicadas: await Vacunacion.countDocuments({ activo: true }),
-      alertasActivas: await Alerta.countDocuments({ activo: true, atendida: false }),
+      comunidades: await Comunidad.countDocuments({ activo: true, ...(hayFiltros ? { _id: { $in: idsComunidades } } : {}) }),
+      padres: await Padre.countDocuments({ activo: true, ...(hayFiltros ? { _id: { $in: idsPadres } } : {}) }),
+      dosisAplicadas: await Vacunacion.countDocuments({ activo: true, ...filtroRelacion }),
+      alertasActivas: await Alerta.countDocuments(filtroAlertas),
       alertasCriticas: await Alerta.countDocuments({
         activo: true,
         atendida: false,
         tipo: 'critica',
+        ...filtroRelacion,
       }),
     };
 
@@ -115,15 +171,17 @@ export async function obtenerEstadisticas(req, res) {
       dosisAplicadas: await Vacunacion.countDocuments({
         activo: true,
         ...filtroFechaVacunacion,
+        ...filtroRelacion,
       }),
       alertasGeneradas: await Alerta.countDocuments({
         activo: true,
         ...filtroFechaAlertas,
+        ...filtroRelacion,
       }),
     };
 
     const ninosPorComunidad = await Nino.aggregate([
-      { $match: { activo: true } },
+      { $match: { _id: { $in: idsNinos } } },
       { $group: { _id: '$comunidad', cantidad: { $sum: 1 } } },
       {
         $lookup: {
@@ -143,7 +201,7 @@ export async function obtenerEstadisticas(req, res) {
     ]);
 
     const ninosPorUbicacion = await Nino.aggregate([
-      { $match: { activo: true } },
+      { $match: { _id: { $in: idsNinos } } },
       {
         $lookup: {
           from: 'comunidads',
@@ -179,18 +237,19 @@ export async function obtenerEstadisticas(req, res) {
     ]);
 
     const alertasPorTipo = await Alerta.aggregate([
-      { $match: { activo: true, atendida: false } },
+      { $match: filtroAlertas },
       { $group: { _id: '$tipo', cantidad: { $sum: 1 } } },
       { $project: { _id: 0, tipo: '$_id', cantidad: 1 } },
     ]);
 
     const alertasPorMotivo = await Alerta.aggregate([
-      { $match: { activo: true, atendida: false } },
+      { $match: filtroAlertas },
       { $group: { _id: '$motivo', cantidad: { $sum: 1 } } },
       { $project: { _id: 0, motivo: '$_id', cantidad: 1 } },
     ]);
 
     const alertasCriticasDetalle = await Alerta.find({
+      ...filtroRelacion,
       activo: true,
       atendida: false,
       tipo: 'critica',

@@ -443,7 +443,7 @@ No existen modelos independientes para familia, departamento, municipio, carnet,
 
 ## 6. Endpoints de la API (rutas)
 
-Inventario de **68 endpoints explícitos bajo `/api` y un endpoint raíz**, obtenido de `backend/server.js` y los 14 archivos de `backend/routes/`. No se incluyen como rutas de negocio las respuestas automáticas de CORS/Express.
+Inventario de **69 endpoints explícitos bajo `/api` y un endpoint raíz**, obtenido de `backend/server.js` y los 14 archivos de `backend/routes/`. No se incluyen como rutas de negocio las respuestas automáticas de CORS/Express.
 
 **Convenciones:** `A` = `admin`, `E` = `encargado`, `P` = `personal`. `JWT: A/E/P` significa ruta protegida que admite los tres roles actuales. Algunas consultas solo usan `proteger`, sin lista de roles adicional. `Pública` significa sin JWT, no necesariamente sin validaciones o límites. Los parámetros `:id` y `:ninoId` son identificadores MongoDB; `:codigo` es el código textual del carnet.
 
@@ -571,7 +571,7 @@ Fuente: [dashboardRoutes.js](backend/routes/dashboardRoutes.js).
 
 | Método | Ruta | Función / datos relevantes | Acceso |
 | --- | --- | --- | --- |
-| GET | `/api/dashboard` | Totales y distribuciones; `periodo=mes`, `3meses`, `6meses` o `todo`; predeterminado `mes`. | JWT: A/E |
+| GET | `/api/dashboard` | Totales y distribuciones filtrados por `departamento`, `municipio`, `comunidad` (nombre), `sexo` (`M`/`F`), `edadMin`, `edadMax`; actividad con `periodo=mes`, `3meses`, `6meses` o `todo` (predeterminado `mes`). | JWT: A/E |
 
 ### 6.11. Notificaciones
 
@@ -628,9 +628,10 @@ Fuente: [reporteRoutes.js](backend/routes/reporteRoutes.js).
 | --- | --- | --- | --- |
 | GET | `/api/reportes` | Devuelve resumen, riesgos nutricionales, vacunas incompletas, cobertura y crecimiento promedio. | JWT: A/E |
 | GET | `/api/reportes/pdf` | Exporta los datos a PDF A4 horizontal. | JWT: A/E |
-| GET | `/api/reportes/excel` | Exporta cuatro hojas de Excel. | JWT: A/E |
+| GET | `/api/reportes/excel` | Exporta una hoja por sección seleccionada; cinco en el reporte general. | JWT: A/E |
+| GET | `/api/reportes/conteo` | Devuelve `{ ninos }` con el número de niños que cumplen los filtros de población. | JWT: A/E |
 
-Las tres rutas aceptan `departamento`, `municipio` y `comunidad` como query strings. **`comunidad` es el nombre, no el ObjectId**. Solo incluyen comunidades activas y niños activos de esas comunidades.
+Las cuatro rutas aceptan filtros de población como query strings; el contrato completo del constructor se detalla en 7.12.1. La localidad usa `departamento`, `municipio` y `comunidad`. **`comunidad` es el nombre, no el ObjectId**. Solo incluyen comunidades activas y niños activos de esas comunidades.
 
 ### 6.16. Contratos generales para preparar Swagger/OpenAPI
 
@@ -818,7 +819,13 @@ Fuentes: `dashboardController.js`, `Dashboard.jsx`.
 | `alertasPorTipo` / `alertasPorMotivo` | Conteos de alertas activas no atendidas. |
 | `ninosConAlertasCriticas` | Hasta diez alertas críticas pobladas con nombre del niño; no deduplica por paciente. |
 
-`mes` inicia el primer día del mes actual; `3meses` incluye el actual y dos anteriores; `6meses`, el actual y cinco anteriores; `todo` no aplica fecha inicial. El período afecta la actividad, no todos los totales/distribuciones. El filtro geográfico de la pantalla reorganiza los datos territoriales en cliente y permite profundizar departamento → municipio → comunidad; no filtra globalmente las demás tarjetas.
+`mes` inicia el primer día del mes actual; `3meses` incluye el actual y dos anteriores; `6meses`, el actual y cinco anteriores; `todo` no aplica fecha inicial. El período afecta únicamente la actividad, siempre dentro del conjunto de niños seleccionado.
+
+Los filtros generales de departamento, municipio, comunidad (nombre exacto, no ObjectId), sexo y edad se aplican en el backend a todas las métricas y distribuciones. Los filtros geográficos resuelven comunidades activas. La edad se calcula con un año promedio de 365.2425 días: mínimo incluido y máximo menor que `edadMax + 1` (0–5 incluye hasta antes de cumplir seis años). Se admiten números no negativos, incluidos decimales; valores vacíos se omiten. Sexo inválido, edades no finitas/negativas, rango invertido o filtros no escalares devuelven 400.
+
+Con filtros de población, padres y comunidades cuentan entidades activas vinculadas a los niños seleccionados, sin duplicarlas; sin esos filtros conservan los conteos globales activos, incluso entidades sin niños. Sin filtro geográfico se mantienen todos los niños activos, como antes. Las dosis y alertas se restringen siempre a los niños del conjunto: registros de niños inactivos o referencias huérfanas ya no inflan esos conteos. Esta precisión puede modificar totales históricos frente a la implementación anterior si existen dichos registros.
+
+La barra permite preparar filtros y aplicarlos juntos, muestra el resumen de la selección aplicada y ofrece Limpiar para volver a la vista general con actividad del mes. Cambiar selectores no altera las cifras hasta aplicar; el gráfico territorial agrupa la respuesta ya filtrada. Las opciones de comunidades se obtienen del catálogo, independientemente de las coincidencias del dashboard.
 
 ### 7.9. Notificaciones por Telegram y Brevo
 
@@ -876,14 +883,42 @@ Fuentes: `reporteService.js`, `reporteController.js`, `Reportes.jsx`.
 
 Los reportes filtran territorio y calculan datos de niños activos. Incluyen:
 
-1. **Riesgos nutricionales:** última medición activa; bajo peso cuando Z de peso < -2 y/o clasificación nutricional de riesgo. Puede combinar ambas etiquetas.
+1. **Estado nutricional de los niños:** incluye todos los niños seleccionados, también normales y sin datos. El conteo histórico de riesgos usa la última medición activa; bajo peso cuando Z de peso < -2 y/o clasificación nutricional de riesgo. Puede combinar ambas etiquetas.
 2. **Vacunas incompletas:** compara vacunas activas cuyo rango en años incluye la edad actual con las aplicaciones activas; incluye vacunas sin iniciar que no aparecen en el resumen individual de aplicaciones.
 3. **Cobertura por comunidad:** dosis aplicadas, limitadas al total requerido por cada vacuna, divididas entre dosis requeridas del catálogo aplicable ×100. También cuenta niños que completaron todas las vacunas aplicables. Sin vacunas aplicables la cobertura es `null`.
 4. **Crecimiento promedio:** usa la última medición activa de cada niño; promedia peso, talla e IMC por comunidad con departamento y municipio. No estandariza esos promedios por edad/sexo.
 
-El PDF contiene resumen y tablas en A4 horizontal, con encabezados y saltos de página. Excel crea cuatro hojas: Riesgos nutricionales, Vacunas incompletas, Cobertura por comunidad y Crecimiento promedio, con encabezados, autofiltro y primera fila congelada. Las descargas usan `Content-Disposition: attachment` y nombre `reporte-sccvi-YYYY-MM-DD`.
+El PDF contiene resumen y tablas en A4 horizontal, con encabezados y saltos de página. El Excel general crea cinco hojas: Resumen, Estado nutricional, Vacunas incompletas, Cobertura y Crecimiento promedio. Las exportaciones personalizadas crean únicamente las hojas elegidas, con encabezados, filtros impresos y filas iniciales congeladas. Las descargas usan `Content-Disposition: attachment` y nombre `reporte-sccvi-YYYY-MM-DD`.
 
 El frontend conserva los filtros aplicados para exportar con ellos. El reporte se vuelve a calcular al descargar: no es una instantánea congelada de los datos que antes se mostraron. El conteo `vacunasIncompletas` corresponde a pares niño/vacuna, no necesariamente a niños distintos.
+
+### 7.12.1. Constructor de reportes personalizables
+
+Las rutas GET existentes se conservan y se añade `GET /api/reportes/conteo`, con la misma autorización admin/encargado. No cambia ningún modelo ni se agregan dependencias. `reporteOpciones.js` valida el contrato y `reporteTablas.js` construye una definición compartida de tablas para PDF y Excel.
+
+| Parámetro query | Contrato |
+| --- | --- |
+| `departamento`, `municipio`, `comunidad` | Cadenas exactas opcionales; comunidad es nombre, no ObjectId. Solo comunidades activas. |
+| `sexo` | `M`, `F` o vacío (todos). |
+| `edadMin`, `edadMax` | Números no negativos opcionales, incluidos decimales; año promedio de 365.2425 días. Mínimo incluido y edad estrictamente menor que máximo + 1. |
+| `estadoNutricional` | Lista separada por comas o parámetros repetidos. Opciones: `normal`, `desnutricion`, `riesgo_sobrepeso`, `sobrepeso`, `obesidad`, `sin_datos`. Vacío significa todos. |
+| `resumenCantidades`, `listadoNutricional`, `vacunasIncompletas`, `coberturaVacunacion`, `crecimientoPromedio` | Booleanos `true`/`false`; omitidos equivalen a `true`. Al menos una sección. |
+| `modo` | `cantidades`, `detalle`, `ambos`. En configuración personalizada el predeterminado es `ambos`. |
+| `agrupacion` | `general`, `porComunidad`, `porSexo`, `porEstadoNutricional`; predeterminado personalizado `general`. |
+| `col_nombre`, `col_edad`, `col_sexo`, `col_comunidad`, `col_peso`, `col_talla`, `col_clasificacionNutricional`, `col_vacunacion` | Booleanos de columnas; omitidos equivalen a `true`. El prefijo evita colisión con filtros `sexo` y `comunidad`. Si hay detalle debe quedar al menos una columna, salvo que solo se pida resumen. |
+| `general=true` | Restaura el reporte completo con todas sus secciones y columnas habituales, manteniendo los filtros de población. También es el comportamiento cuando no se envían opciones de presentación. |
+
+El estado se toma de la última medición activa por fecha. El filtro `desnutricion` incluye desnutrición/delgadez y ambas variantes severas; el detalle conserva la etiqueta específica. Un niño sin medición o con estado sin datos se agrupa en `sin_datos`. Los filtros se combinan con AND y los estados seleccionados entre sí con OR. El conjunto resultante se usa para todas las secciones. Con filtros de sexo/edad/estado, el reporte general solo conserva las comunidades vinculadas; sin ellos conserva comunidades activas vacías como antes.
+
+`cantidades` devuelve solo grupos y métricas, sin filas individuales ni nombres. `detalle` incluye filas por niño con las columnas elegidas. `ambos` produce ambas tablas por sección; en Excel van dentro de la misma hoja. El resumen de cantidades siempre es agregado, incluso en modo detalle. La sección nutricional incluye todos los niños coincidentes; vacunas incompletas incluye solo niños con vacunas pendientes (una fila por niño, descripción en la columna Vacunación); crecimiento detallado incluye solo niños con medición. La cobertura detallada usa el mismo estado vacunal por niño. Los promedios personalizados excluyen valores faltantes de cada indicador.
+
+Las cantidades de vacunas pendientes distinguen niños con pendientes de pares niño/vacuna. La cobertura sigue siendo dosis aplicadas, limitadas a las requeridas, sobre dosis requeridas del catálogo aplicable por edad. Sin dosis requeridas no hay porcentaje. Agrupar por estado conserva por separado riesgo de sobrepeso, sobrepeso y obesidad.
+
+La respuesta JSON personalizada contiene `generadoEn`, `filtros`, `opciones`, `coincidencias` y `tablas`; cada tabla declara sección, título, tipo, columnas y filas proyectadas solo a esas columnas. La respuesta general conserva los campos históricos y añade `listadoNutricional` y `tablas`. El conteo devuelve únicamente `{ ninos: número }` y no carga catálogo de vacunas/aplicaciones. No es una instantánea: cambios concurrentes en datos pueden modificar el resultado al exportar.
+
+La pantalla abre el constructor desde Crear / Exportar reporte, hereda la localidad aplicada y permite modificar población, secciones, presentación y columnas. El conteo se actualiza tras una pausa de 350 ms y cancela solicitudes anteriores. Se bloquea exportar mientras el conteo está pendiente/falla o la selección es inválida. Cero coincidencias permite exportar un archivo vacío identificado como tal. PDF imprime los filtros en cada página y Excel en cada hoja. Errores de opciones responden 400, también en descargas.
+
+Ejemplo de cantidades por sexo, solo nutrición: `/api/reportes/pdf?modo=cantidades&agrupacion=porSexo&estadoNutricional=normal,obesidad&resumenCantidades=false&listadoNutricional=true&vacunasIncompletas=false&coberturaVacunacion=false&crecimientoPromedio=false`.
 
 ### 7.13. Navegación, componentes y presentación
 
