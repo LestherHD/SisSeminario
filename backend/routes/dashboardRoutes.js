@@ -11,6 +11,7 @@ const router = express.Router();
  *     tags: [Dashboard]
  *     summary: Obtener indicadores del sistema
  *     description: Solo admin y encargado. El período afecta la actividad; los totales y distribuciones reflejan el estado actual.
+ *     x-territorio: Personal y encargados requieren asignación; los filtros no amplían su acceso.
  *     security:
  *       - bearerAuth: []
  *     parameters:

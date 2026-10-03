@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { evaluarEdadVacuna, etiquetaRangoVacuna, fechaDia } from '../../../shared/reglasSalud.mjs';
 import { useSearchParams } from 'react-router-dom';
 import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -43,8 +44,9 @@ export default function Vacunacion() {
     usuario?.rol === 'admin' || usuario?.rol === 'encargado' || usuario?.rol === 'personal';
   const [ninos, setNinos] = useState([]);
   const [vacunasCatalogo, setVacunasCatalogo] = useState([]);
-  const [ninoObj, setNinoObj] = useState(null);
-  const [ninoSeleccionado, setNinoSeleccionado] = useState('');
+  const [ninoManual, setNinoManual] = useState(null);
+  const ninoSeleccionado = ninoManual?.consulta === searchParams.toString() ? ninoManual.id : searchParams.get('nino') || '';
+  const ninoObj = ninos.find((nino) => nino._id === ninoSeleccionado) || null;
   const [resumen, setResumen] = useState([]);
   const [detalle, setDetalle] = useState([]);
   const [cargando, setCargando] = useState(false);
@@ -59,24 +61,6 @@ export default function Vacunacion() {
     vacuna: '',
     fechaAplicada: formatoFechaHoy(),
   });
-
-  const cargarNinos = async () => {
-    try {
-      const response = await api.get('/ninos');
-      setNinos(response.data);
-    } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al cargar niños');
-    }
-  };
-
-  const cargarVacunasCatalogo = async () => {
-    try {
-      const response = await api.get('/vacunas');
-      setVacunasCatalogo(response.data);
-    } catch (error) {
-      setError(error.response?.data?.mensaje || 'Error al cargar vacunas');
-    }
-  };
 
   const cargarRegistros = async (ninoId) => {
     if (!ninoId) {
@@ -104,27 +88,22 @@ export default function Vacunacion() {
   };
 
   useEffect(() => {
-    cargarNinos();
-    cargarVacunasCatalogo();
+    let vigente = true;
+    Promise.all([api.get('/ninos'), api.get('/vacunas')]).then(([pacientes, catalogo]) => {
+      if (vigente) { setNinos(pacientes.data); setVacunasCatalogo(catalogo.data); }
+    }).catch((errorCarga) => { if (vigente) setError(errorCarga.response?.data?.mensaje || 'Error al cargar datos'); });
+    return () => { vigente = false; };
   }, []);
 
   useEffect(() => {
-    const ninoIdParam = searchParams.get('nino');
-
-    if (!ninoIdParam || ninos.length === 0) {
-      return;
-    }
-
-    const nino = ninos.find((n) => n._id === ninoIdParam);
-
-    if (nino) {
-      setNinoObj(nino);
-      setNinoSeleccionado(nino._id);
-    }
-  }, [ninos, searchParams]);
-
-  useEffect(() => {
-    cargarRegistros(ninoSeleccionado);
+    if (!ninoSeleccionado) return;
+    let vigente = true;
+    Promise.all([api.get(`/vacunacion/resumen/${ninoSeleccionado}`), api.get(`/vacunacion/nino/${ninoSeleccionado}`)])
+      .then(([resumenRespuesta, detalleRespuesta]) => {
+        if (vigente) { setResumen(resumenRespuesta.data); setDetalle(detalleRespuesta.data); setError(''); }
+      }).catch((errorCarga) => { if (vigente) setError(errorCarga.response?.data?.mensaje || 'Error al cargar vacunación'); })
+      .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
   }, [ninoSeleccionado]);
 
   const abrirCrear = () => {
@@ -145,6 +124,7 @@ export default function Vacunacion() {
   };
 
   const pedirConfirmacion = () => {
+    if (!form.vacuna || !ninoObj || !fechaDia(form.fechaAplicada) || fechaDia(form.fechaAplicada) > fechaDia(new Date()) || !evaluarEdadVacuna(vacunaSeleccionada, ninoObj.fechaNacimiento, form.fechaAplicada).permitida) return;
     setDialogoAbierto(false);
     setConfirmacionAbierta(true);
   };
@@ -242,8 +222,8 @@ export default function Vacunacion() {
           getOptionLabel={(option) => option.nombreCompleto || ''}
           value={ninoObj}
           onChange={(event, nuevoValor) => {
-            setNinoObj(nuevoValor);
-            setNinoSeleccionado(nuevoValor ? nuevoValor._id : '');
+            setCargando(Boolean(nuevoValor));
+            setNinoManual({ id: nuevoValor ? nuevoValor._id : '', consulta: searchParams.toString() });
           }}
           isOptionEqualToValue={(option, value) => option._id === value._id}
           renderInput={(params) => <TextField {...params} label="Buscar niño" />}
@@ -279,6 +259,7 @@ export default function Vacunacion() {
           </Stack>
         )}
 
+        {!ninoSeleccionado && error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {!ninoSeleccionado && (
           <Alert severity="info" sx={{ mb: 3 }}>
             Selecciona un niño para ver su esquema de vacunación.
@@ -444,7 +425,8 @@ export default function Vacunacion() {
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Autocomplete
               options={vacunasCatalogo}
-              getOptionLabel={(option) => option.nombre || ''}
+              getOptionLabel={(option) => `${option.nombre || ''} · ${etiquetaRangoVacuna(option)}`}
+              getOptionDisabled={(option) => !evaluarEdadVacuna(option, ninoObj?.fechaNacimiento, form.fechaAplicada).permitida}
               value={vacunaSeleccionada}
               onChange={(event, nuevoValor) => {
                 setForm({ ...form, vacuna: nuevoValor ? nuevoValor._id : '' });
@@ -464,11 +446,14 @@ export default function Vacunacion() {
             <Typography variant="caption" color="text.secondary">
               El sistema calculará automáticamente qué número de dosis es y la fecha de la próxima.
             </Typography>
+            <Alert severity="info">Las vacunas fuera del rango configurado aparecen deshabilitadas. Se usa la edad en la fecha de aplicación, no la edad actual.</Alert>
+            {vacunaSeleccionada && !evaluarEdadVacuna(vacunaSeleccionada, ninoObj?.fechaNacimiento, form.fechaAplicada).permitida && <Alert severity="warning">{evaluarEdadVacuna(vacunaSeleccionada, ninoObj?.fechaNacimiento, form.fechaAplicada).motivo}</Alert>}
+            {(!fechaDia(form.fechaAplicada) || fechaDia(form.fechaAplicada) > fechaDia(new Date())) && <Alert severity="warning">Seleccione una fecha válida, no futura.</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={cerrarDialogo}>Cancelar</Button>
-          <Button variant="contained" onClick={pedirConfirmacion} disabled={guardando}>
+          <Button variant="contained" onClick={pedirConfirmacion} disabled={guardando || !form.vacuna || !fechaDia(form.fechaAplicada) || fechaDia(form.fechaAplicada) > fechaDia(new Date()) || !evaluarEdadVacuna(vacunaSeleccionada, ninoObj?.fechaNacimiento, form.fechaAplicada).permitida}>
             Guardar
           </Button>
         </DialogActions>

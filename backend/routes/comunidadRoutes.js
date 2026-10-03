@@ -11,6 +11,7 @@ const router = express.Router();
  *     tags: [Comunidades]
  *     summary: Listar comunidades y familias calculadas
  *     description: Admin, encargado o personal. Cuenta combinaciones distintas de padres de niños activos por comunidad y ordena por nombre.
+ *     x-territorio: Personal y encargados requieren asignación; los filtros no amplían su acceso.
  *     security:
  *       - bearerAuth: []
  *     parameters:

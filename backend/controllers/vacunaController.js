@@ -1,8 +1,10 @@
 import Vacuna from '../models/Vacuna.js';
+import { rangoVacunaMeses } from '../../shared/reglasSalud.mjs';
 
 function vacunaParaRespuesta(vacuna) {
   return {
     ...vacuna,
+    rangoEdadUnidad: vacuna.rangoEdadUnidad || 'anios',
     rangoEdad:
       vacuna.rangoEdad ||
       (vacuna.edadRecomendada != null
@@ -25,6 +27,7 @@ function datosVacuna(body) {
   return {
     nombre: body.nombre?.trim(),
     rangoEdad: body.rangoEdad?.trim() || '',
+    rangoEdadUnidad: body.rangoEdadUnidad ?? 'anios',
     dosisMl,
     numeroDosis,
     intervaloValor:
@@ -35,6 +38,7 @@ function datosVacuna(body) {
 }
 
 function validarVacuna(datos) {
+  if (!rangoVacunaMeses(datos)) return 'Seleccione un rango entero válido (0 a 1000), en años o meses.';
   const coincidencia = /^(\d+)-(\d+)$/.exec(datos.rangoEdad);
 
   if (!coincidencia || Number(coincidencia[1]) > Number(coincidencia[2])) {
@@ -106,7 +110,9 @@ export async function obtenerPorId(req, res) {
 export async function actualizar(req, res) {
   try {
     const { id } = req.params;
-    const datos = datosVacuna(req.body);
+    const actual = await Vacuna.findById(id).lean();
+    if (!actual) return res.status(404).json({ mensaje: 'Vacuna no encontrada' });
+    const datos = datosVacuna({ ...req.body, rangoEdadUnidad: req.body.rangoEdadUnidad ?? actual.rangoEdadUnidad ?? 'anios' });
     const errorValidacion = validarVacuna(datos);
 
     if (errorValidacion) {

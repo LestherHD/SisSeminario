@@ -1,3 +1,4 @@
+import { filtroPoblacion } from '../services/territorioService.js';
 import Padre from '../models/Padre.js';
 import { enviarBienvenida } from '../services/emailService.js';
 
@@ -82,7 +83,7 @@ export async function crear(req, res) {
 export async function listar(req, res) {
   try {
     const incluirInactivos = req.query.incluirInactivos === 'true';
-    const filtro = incluirInactivos ? {} : { activo: true };
+    const filtro = { ...(incluirInactivos ? {} : { activo: true }), ...filtroPoblacion(req) };
     const padres = await Padre.find(filtro)
       .populate('comunidad', 'nombre departamento municipio activo')
       .sort({ nombreCompleto: 1 });

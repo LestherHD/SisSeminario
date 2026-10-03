@@ -1,3 +1,4 @@
+import { campanaPermitida } from '../services/territorioService.js';
 import mongoose from 'mongoose';
 import Campana from '../models/Campana.js';
 import Comunidad from '../models/Comunidad.js';
@@ -236,7 +237,7 @@ export async function listar(req, res) {
       .sort({ fechaRealizacion: -1, createdAt: -1 })
       .lean();
 
-    return res.status(200).json(campanas.map(conEstado));
+    return res.status(200).json(campanas.filter((campana) => campanaPermitida(req, campana)).map(conEstado));
   } catch (error) {
     return res.status(500).json({ mensaje: 'Error al cargar campañas', error: error.message });
   }

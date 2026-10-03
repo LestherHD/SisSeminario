@@ -1,3 +1,4 @@
+import { controlCrecimiento } from '../../shared/reglasSalud.mjs';
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
 import Nino from '../models/Nino.js';
 import { evaluarMedicionOms, obtenerCurvaOms } from '../services/omsService.js';
@@ -122,6 +123,7 @@ export async function obtenerCurvas(req, res) {
     const edadMinima = Math.max(0, Math.min(...edadesRegistradas, edadActual) - 6);
 
     return res.status(200).json({
+      control: controlCrecimiento(nino.fechaNacimiento, registros.at(-1)?.fecha),
       referencia: edadMaxima < 60 ? 'OMS 2006' : 'OMS 2006 / OMS 2007',
       peso: {
         referencia: obtenerCurvaOms('peso', nino.sexo, edadMinima, edadMaxima),

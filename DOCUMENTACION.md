@@ -172,16 +172,16 @@ Los manifiestos ofrecen estos comandos, ejecutados dentro del directorio corresp
 | `frontend` | `npm run preview` | Previsualizar la compilación. |
 | `frontend` | `npm run lint` | Ejecutar ESLint. |
 
-`backend` no tiene una suite de pruebas configurada: su script `test` imprime que no hay pruebas especificadas y termina con error. `seed.js` elimina todas las comunidades, padres, niños, mediciones y vacunas antes de insertar ejemplos; no es un instalador de producción. No limpia las otras colecciones y sus ejemplos no pasan por los controladores ni calculan automáticamente todos los campos OMS o del carnet.
+`backend/tests/` contiene pruebas con el runner nativo: desde la raíz, `node --test backend/tests/*.test.js`. Su script npm `test` heredado aún es un placeholder; usar el comando anterior. Las pruebas usan datos simulados y servidores HTTP aislados, sin MongoDB ni proveedores externos. `seed.js` elimina todas las comunidades, padres, niños, mediciones y vacunas antes de insertar ejemplos; no es un instalador de producción. No limpia las otras colecciones y sus ejemplos no pasan por los controladores ni calculan automáticamente todos los campos OMS o del carnet.
 
 ## 4. Actores y roles
 
-El enum de [Usuario](backend/models/Usuario.js) admite exclusivamente `admin`, `personal` y `encargado`. El rol predeterminado es `personal`. [authMiddleware.js](backend/middleware/authMiddleware.js) distingue autenticación (`proteger`) y autorización por rol (`autorizar`). El rol efectivo se consulta en MongoDB en cada petición protegida.
+El enum de [Usuario](backend/models/Usuario.js) admite exclusivamente `admin`, `personal` y `encargado`. El rol predeterminado es `personal`. [authMiddleware.js](backend/middleware/authMiddleware.js) distingue autenticación (`proteger`) y autorización por rol (`autorizar`). El rol efectivo y sus asignaciones territoriales se consultan en MongoDB en cada petición protegida.
 
 | Actor | Responsabilidad y acceso |
 | --- | --- |
 | Administrador (`admin`) | Todas las operaciones del personal; administra cuentas, revoca Telegram y prueba correo. Está sujeto a las restricciones de la propia cuenta y del último administrador activo. |
-| Encargado (`encargado`) | Gestión operativa, catálogos, desactivaciones/reactivaciones permitidas, análisis global de alertas, campañas, dashboard y reportes. Sin administración de usuarios ni revocación de Telegram. |
+| Encargado (`encargado`) | Gestión operativa dentro de su territorio, consulta del catálogo, desactivaciones/reactivaciones permitidas, análisis territorial de alertas, campañas, dashboard y reportes. Sin administración de usuarios ni revocación de Telegram. |
 | Personal (`personal`) | Consulta, creación y edición de comunidades, padres y niños; registro/edición de crecimiento, registro de vacunas aplicadas, atención de alertas y acceso al carnet interno. Puede consultar campañas. |
 | Padre o tutor | Entidad `Padre`, no rol de `Usuario`. Recibe avisos, vincula Telegram con DPI y consulta un carnet con código/PIN. |
 | Niño o niña | Paciente registrado; no tiene cuenta de acceso. |
@@ -194,13 +194,13 @@ El enum de [Usuario](backend/models/Usuario.js) admite exclusivamente `admin`, `
 | Consultar comunidades, padres, niños y vacunas | Sí | Sí | Sí |
 | Crear/editar comunidades, padres y niños | Sí | Sí | Sí |
 | Desactivar/reactivar comunidades, padres y niños | Sí | Sí | No |
-| Mantener catálogo de vacunas | Sí | Sí | No |
+| Mantener catálogo de vacunas | Sí | No | No |
 | Consultar/crear/editar/eliminar mediciones | Sí | Sí | Sí |
 | Consultar/registrar/eliminar dosis aplicadas | Sí | Sí | Sí |
 | Consultar/atender alertas | Sí | Sí | Sí |
 | Ejecutar análisis global/eliminar alertas | Sí | Sí | No |
 | Enviar una alerta a los padres | Sí | Sí | Sí |
-| Probar Telegram | Sí | Sí | No |
+| Probar Telegram | Sí | No | No |
 | Probar email | Sí | No | No |
 | Generar/enviar carnet y consultar expediente interno | Sí | Sí | Sí |
 | Consultar campañas/previsualizar destinatarios | Sí | Sí | Sí |
@@ -210,7 +210,19 @@ El enum de [Usuario](backend/models/Usuario.js) admite exclusivamente `admin`, `
 
 **Diferencias con la interfaz:** `personal` puede leer vacunas por API para registrar aplicaciones, aunque no puede abrir la página de mantenimiento `/vacunas`. El botón de notificar una alerta se muestra solo a `admin`/`encargado`, aunque la API permite también `personal`. La API ofrece eliminación de crecimiento y reactivación de comunidades, pero las páginas correspondientes no presentan esas acciones. Las restricciones reales de cada endpoint se detallan a continuación; ocultar un botón no sustituye autorización.
 
-No existen permisos por comunidad asignada a un empleado: los usuarios autorizados consultan los registros generales del sistema.
+### 4.2. Asignación territorial del personal
+
+`admin` mantiene acceso general. `personal` y `encargado` requieren `Usuario.territorios`: municipios completos identificados por departamento/municipio, comunidades específicas por ObjectId, o una combinación. Varios empleados pueden compartir territorio. Un municipio incluye sus comunidades actuales y futuras. El administrador asigna territorios desde Usuarios; no se crean roles nuevos ni hace falta otro administrador.
+
+`proteger` consulta usuario/asignaciones en cada petición y `territorioService.js` resuelve el alcance antes del controlador. Sin asignaciones, las cuentas pueden iniciar sesión y consultar su perfil, pero las rutas operativas responden 403. Los usuarios anteriores sin el campo se consideran sin asignación, nunca con acceso general. Un cambio de asignación surte efecto en la siguiente petición, incluso con el mismo JWT; la interfaz actualiza su contexto al recargar.
+
+Los listados de comunidades/padres/niños, alertas, dashboard y reportes se restringen en backend. Las lecturas, escrituras y desactivaciones por ID comprueban comunidad o niño propietario; también se comprueban las referencias enviadas al crear/editar. Un niño solo puede asociarse a padres activos del territorio autorizado por personal restringido. Los padres poblados en fichas y expedientes internos y destinatarios de envíos manuales se limitan al territorio. El carnet público conserva código/PIN como mecanismo de acceso independiente.
+
+Crear comunidades requiere un municipio completo asignado; una asignación a comunidad permite editar esa comunidad, pero no crear vecinas ni trasladarla a otro municipio. Solo admin puede trasladar comunidades. Campañas de municipio requieren ese municipio completo asignado; las de comunidad requieren acceso a esa comunidad. Solo admin gestiona campañas departamentales. Las campañas fuera del alcance se excluyen del listado, incluidas sus métricas globales de envío, para evitar filtraciones.
+
+El catálogo compartido de vacunas y las pruebas de envío a chat/email arbitrarios quedan bajo administración global; los encargados pueden consultar el catálogo y registrar aplicaciones en su territorio, pero no modificar el catálogo. Los análisis manuales solo recorren niños autorizados; el scheduler continúa realizando seguimiento global como proceso del sistema.
+
+El alcance es geográfico: no diferencia dos establecimientos ubicados en la misma comunidad. No existe modelo de establecimiento. Los filtros elegidos en pantalla solo reducen el territorio autorizado; no lo amplían. Las operaciones existentes no son transacciones distribuidas; el control de acceso se comprueba por petición.
 
 ## 5. Modelos de datos (entidades)
 
@@ -240,6 +252,7 @@ Fuente: [backend/models/Usuario.js](backend/models/Usuario.js).
 | `email` | String | Obligatorio, único, minúsculas y `trim`. |
 | `password` | String | Obligatorio; hash bcrypt al guardar si fue modificado. |
 | `rol` | String | Enum `admin`, `personal`, `encargado`; predeterminado `personal`. |
+| `territorios` | Subdocument[] | Predeterminado `[]`. Cada entrada contiene `alcance` (`municipio`/`comunidad`), `departamento`, `municipio` y `comunidad` (ObjectId ref Comunidad para alcance comunidad). Sin `_id` por entrada. Solo admin asigna. |
 | `emailVerificado` | Boolean | Predeterminado `true`; el administrador inicial se crea con `false`. |
 | `verificacionEmailToken` | String | Hash SHA-256 del código; `select: false`. |
 | `verificacionEmailExpires` | Date | Vencimiento del código; `select: false`. |
@@ -251,7 +264,7 @@ Fuente: [backend/models/Usuario.js](backend/models/Usuario.js).
 | `resetPasswordSolicitadoEn` | Date | Última solicitud; `select: false`. |
 | `passwordChangedAt` | Date | Fecha que permite rechazar JWT emitidos antes del cambio. |
 
-No contiene refs salientes. El hook `pre('save')` usa bcrypt con costo 10; el método `compararPassword(passwordPlano)` compara contra el hash. `password` no declara `select: false`: los controladores/middleware excluyen o seleccionan explícitamente los datos que devuelven.
+La referencia saliente es `territorios[].comunidad` hacia Comunidad. El hook `pre('save')` usa bcrypt con costo 10; el método `compararPassword(passwordPlano)` compara contra el hash. `password` no declara `select: false`: los controladores/middleware excluyen o seleccionan explícitamente los datos que devuelven.
 
 ### 5.3. Comunidad
 
@@ -315,7 +328,8 @@ Fuente: [backend/models/Vacuna.js](backend/models/Vacuna.js).
 | Campo | Tipo | Regla |
 | --- | --- | --- |
 | `nombre` | String | Obligatorio, `trim`. |
-| `rangoEdad` | String | Obligatorio, `trim`; formato `mínimo-máximo`, enteros no negativos y mínimo ≤ máximo. La interfaz y reportes lo interpretan en años. |
+| `rangoEdad` | String | Obligatorio, `trim`; formato `mínimo-máximo`, enteros no negativos y mínimo ≤ máximo. Se interpreta según `rangoEdadUnidad`; el máximo incluye toda la unidad cumplida. |
+| `rangoEdadUnidad` | String | Enum `anios`, `meses`; predeterminado `anios` para conservar datos anteriores. La interfaz propone meses en nuevas vacunas. |
 | `dosisMl` | Number | Obligatorio, mínimo `0.01`; volumen de referencia en mililitros. |
 | `numeroDosis` | Number | Obligatorio, mínimo `1`; el controlador exige entero. |
 | `intervaloValor` | Number | Mínimo `0`, predeterminado `0`. |
@@ -426,6 +440,7 @@ Fuente: [backend/models/Campana.js](backend/models/Campana.js).
 
 | Origen y campo | Destino | Cardinalidad lógica |
 | --- | --- | --- |
+| `Usuario.territorios[].comunidad` | Comunidad | Muchos usuarios pueden compartir comunidades; asignaciones a municipio usan departamento/municipio. |
 | `Padre.comunidad` | Comunidad | Muchos padres → una comunidad. |
 | `Nino.comunidad` | Comunidad | Muchos niños → una comunidad. |
 | `Nino.padres[]` | Padre | Muchos niños ↔ muchos padres; arreglo almacenado del lado del niño, sin mínimo. |
@@ -524,10 +539,10 @@ Fuente: [vacunaRoutes.js](backend/routes/vacunaRoutes.js).
 | --- | --- | --- | --- |
 | GET | `/api/vacunas` | Lista activas; admite `incluirInactivos=true` y normaliza campos históricos. | JWT: A/E/P |
 | GET | `/api/vacunas/:id` | Obtiene vacuna activa. | JWT: A/E/P |
-| POST | `/api/vacunas` | Crea con `nombre`, `rangoEdad`, `dosisMl`, `numeroDosis`, intervalo y descripción. | JWT: A/E |
-| PUT | `/api/vacunas/:id` | Actualiza catálogo con normalización y validación de datos. | JWT: A/E |
-| DELETE | `/api/vacunas/:id` | Desactiva vacuna. | JWT: A/E |
-| PATCH | `/api/vacunas/:id/reactivar` | Reactiva vacuna. | JWT: A/E |
+| POST | `/api/vacunas` | Crea con `nombre`, `rangoEdad`, `dosisMl`, `numeroDosis`, intervalo y descripción. | JWT: A |
+| PUT | `/api/vacunas/:id` | Actualiza catálogo con normalización y validación de datos. | JWT: A |
+| DELETE | `/api/vacunas/:id` | Desactiva vacuna. | JWT: A |
+| PATCH | `/api/vacunas/:id/reactivar` | Reactiva vacuna. | JWT: A |
 
 ### 6.7. Vacunación
 
@@ -579,7 +594,7 @@ Fuente: [notificacionRoutes.js](backend/routes/notificacionRoutes.js).
 
 | Método | Ruta | Función / datos relevantes | Acceso |
 | --- | --- | --- | --- |
-| POST | `/api/notificaciones/prueba` | Body `chatId`, `mensaje` opcional; envía prueba Telegram. | JWT: A/E |
+| POST | `/api/notificaciones/prueba` | Body `chatId`, `mensaje` opcional; envía prueba Telegram. | JWT: A |
 | POST | `/api/notificaciones/prueba-email` | Body `email`, `nombre` opcional; envía bienvenida como prueba. | JWT: A |
 | POST | `/api/notificaciones/alerta` | Body `{ alertaId }`; intenta enviar a padres por sus canales; devuelve `enviadas`, `intentos`, `totalPadres`. | JWT: A/E/P |
 
@@ -712,7 +727,9 @@ El alta por API genera código, PIN y URL del carnet. La pantalla ofrece expedie
 
 Fuentes: `vacunaController.js`, `vacunacionController.js`, `utils/calculos.js`, `Vacunas.jsx`, `Vacunacion.jsx`.
 
-El catálogo define rango de edad en años, volumen, número total de dosis e intervalo. El controlador fuerza intervalo cero para dosis única y exige un intervalo positivo para esquemas de más de una dosis. El rango es una recomendación y un filtro usado en reportes; el endpoint que registra aplicaciones **no valida que la edad del niño esté dentro de él**.
+El catálogo define rango de edad en años o meses, volumen, número total de dosis e intervalo. El controlador fuerza intervalo cero para dosis única y exige un intervalo positivo para esquemas de más de una dosis. El rango es una restricción al registrar nuevas aplicaciones y también determina vacunas aplicables en reportes. `shared/reglasSalud.mjs` comparte los límites entre backend y frontend. Se usan meses de calendario cumplidos en la fecha de aplicación, con ajuste al último día del mes cuando corresponde. Por ejemplo, `2-5 meses` admite desde dos meses hasta antes de cumplir seis; `0-1 años` admite desde nacimiento hasta antes de cumplir dos años. Los rangos anteriores sin unidad siguen siendo años y no se convierten automáticamente.
+
+El backend valida niño y vacuna activos, identificadores, fecha válida no futura/no anterior al nacimiento y rango antes de guardar. Devuelve 400 si la edad no corresponde; una vacuna sin rango válido debe corregirse en el catálogo. No se inventan rangos clínicos: el administrador debe revisar los configurados por el centro. La pantalla deshabilita las opciones fuera de rango y muestra el motivo si la fecha cambia. No hay excepción de rango implementada; el centro debe configurar un rango operativo apropiado. Los registros históricos no se modifican ni se eliminan por esta validación.
 
 Al registrar una aplicación:
 
@@ -725,7 +742,7 @@ Al registrar una aplicación:
 
 El resumen agrupa solo vacunas que ya tienen aplicaciones, cuenta dosis y usa la de mayor `numeroDosis` para la próxima fecha. Presenta `completa` si alcanza el total, `atrasada` si la próxima fecha ya pasó y `al_dia` en los demás casos. No significa que un niño tenga todo el catálogo completo.
 
-**Límites reales:** registrar la siguiente dosis no limpia `proximaDosis` de aplicaciones anteriores; eliminar una aplicación no renumera las restantes ni recalcula alertas inmediatamente. No hay índice único niño/vacuna/número ni operación transaccional para asignar el número. Tampoco se verifica explícitamente en ese controlador la existencia/estado activo del niño, el estado activo de la vacuna, la separación mínima real entre aplicaciones o fechas futuras. Las refs y el formato Date del esquema no sustituyen esas comprobaciones.
+**Límites reales:** registrar la siguiente dosis no limpia `proximaDosis` de aplicaciones anteriores; eliminar una aplicación no renumera las restantes ni recalcula alertas inmediatamente. No hay índice único niño/vacuna/número ni operación transaccional para asignar el número. No se verifica la separación mínima real entre aplicaciones. Las refs y el formato Date del esquema no sustituyen esas comprobaciones.
 
 ### 7.6. Crecimiento, puntajes Z y percentiles
 
@@ -788,11 +805,11 @@ Se ejecuta al crear/editar una medición, registrar una aplicación de vacuna, s
 | `desnutricion` | Última medición activa con desnutrición, desnutrición severa, delgadez o delgadez severa. | Crítica |
 | `sobrepeso` | Última medición con riesgo de sobrepeso o sobrepeso. | Preventiva |
 | `sobrepeso` | Última medición con obesidad. | Crítica |
-| `sin_registros` | Sin mediciones o última medición anterior a un mes promedio si edad <24 meses, o a tres meses promedio en el resto. | Preventiva |
+| `sin_registros` | Sin mediciones o fecha de próximo control ya pasada: mensual antes de 24 meses, trimestral desde 24 a menos de 36, semestral desde 36 a menos de 60, trimestral desde 60 meses. | Preventiva |
 | `vacuna_proxima` | Alguna aplicación activa tiene próxima dosis durante mañana, según límites UTC. | Preventiva |
 | `vacuna_atrasada` | Alguna aplicación activa tiene próxima dosis anterior al inicio de hoy UTC. | Preventiva |
 
-El intervalo de tres meses se aplica a **todos los niños desde 24 meses**, sin tope de cinco años en el motor. La talla baja no genera por sí sola un motivo de alerta en las reglas actuales. Una dosis programada para hoy no activa ni el recordatorio de mañana ni el atraso anterior a hoy.
+Los controles usan meses de calendario, no meses promedio; la fecha límite se obtiene desde la última medición aplicando la frecuencia correspondiente a la edad actual. El día del control aún no se considera atrasado, sino desde el siguiente. Los tramos menores de cinco años proceden de la tabla aportada por el usuario; desde cinco años se conserva la frecuencia trimestral por decisión explícita del proyecto. La página Crecimiento y el expediente muestran frecuencia, último/próximo control y atraso mediante `SeguimientoCrecimiento`. Es un recordatorio, no una prohibición de controles anticipados. La respuesta de curvas y del expediente incluye `control: { meses, ultimaFecha, proximaFecha, vencido }`. La talla baja no genera por sí sola un motivo de alerta en las reglas actuales. Una dosis programada para hoy no activa ni el recordatorio de mañana ni el atraso anterior a hoy.
 
 Por cada niño y motivo, el motor busca una alerta con `activo=true`, independientemente de `atendida`. Si no existe y la condición se cumple, la crea y notifica. Si existe, actualiza tipo/mensaje cuando cambian; no vuelve a notificar automáticamente. Si la condición desaparece, desactiva todas las alertas activas de ese motivo. No hay índice único de niño/motivo.
 
@@ -884,7 +901,7 @@ Fuentes: `reporteService.js`, `reporteController.js`, `Reportes.jsx`.
 Los reportes filtran territorio y calculan datos de niños activos. Incluyen:
 
 1. **Estado nutricional de los niños:** incluye todos los niños seleccionados, también normales y sin datos. El conteo histórico de riesgos usa la última medición activa; bajo peso cuando Z de peso < -2 y/o clasificación nutricional de riesgo. Puede combinar ambas etiquetas.
-2. **Vacunas incompletas:** compara vacunas activas cuyo rango en años incluye la edad actual con las aplicaciones activas; incluye vacunas sin iniciar que no aparecen en el resumen individual de aplicaciones.
+2. **Vacunas incompletas:** compara vacunas activas cuyo rango en años o meses incluye la edad actual según calendario con las aplicaciones activas; incluye vacunas sin iniciar que no aparecen en el resumen individual de aplicaciones.
 3. **Cobertura por comunidad:** dosis aplicadas, limitadas al total requerido por cada vacuna, divididas entre dosis requeridas del catálogo aplicable ×100. También cuenta niños que completaron todas las vacunas aplicables. Sin vacunas aplicables la cobertura es `null`.
 4. **Crecimiento promedio:** usa la última medición activa de cada niño; promedia peso, talla e IMC por comunidad con departamento y municipio. No estandariza esos promedios por edad/sexo.
 
@@ -1019,7 +1036,7 @@ El backend distingue `404` por código inexistente y `401` por PIN incorrecto. *
 | --- | --- |
 | Contraseñas | bcrypt con salt/costo 10; se recalcula el hash al modificar password y guardar. |
 | Autenticación | JWT firmado con `JWT_SECRET`; vencimiento de siete días; Bearer en encabezado. |
-| Autorización | Middleware de roles en rutas; lectura del usuario actual en MongoDB por petición. |
+| Autorización | Middleware de roles y comprobación territorial por petición, incluido acceso directo por ID y referencias de escritura. |
 | Estado de cuenta | Usuario inexistente/inactivo produce `401` al intentar acceso protegido; no requiere esperar expiración del JWT. |
 | Cambio de contraseña | Se rechazan tokens anteriores a `passwordChangedAt`. |
 | Sesión del navegador | `sessionStorage` para token, eliminación de un token antiguo en `localStorage` al iniciar. |
@@ -1085,3 +1102,16 @@ Estas precisiones son necesarias para no presentar como controles existentes fun
 | Campañas, métricas y reportes | `campanaController.js`, `dashboardController.js`, `reporteService.js`, `reporteController.js` y sus páginas React. |
 
 La documentación describe el comportamiento encontrado mediante revisión estática; no acredita resultados de una ejecución contra la base de datos, servicios externos ni infraestructura de producción.
+
+### 10.6. Actualización operativa de territorios y reglas de seguimiento
+
+Esta actualización no agrega librerías, servicios ni requisitos de configuración de Azure, MongoDB, Nginx o PM2. Incorpora campos compatibles en Usuario (`territorios`, vacío por defecto) y Vacuna (`rangoEdadUnidad`, años por defecto) y código compartido en `shared/reglasSalud.mjs`, que debe viajar con el repositorio completo. No requiere ejecutar seed ni migraciones destructivas.
+
+1. Actualizar el repositorio completo con `git pull` una vez publicados los cambios. No se han desplegado automáticamente desde esta tarea.
+2. Ejecutar `npm run build` dentro de frontend y publicar `frontend/dist` con el procedimiento habitual del servidor.
+3. Reiniciar el proceso de backend existente con `pm2 restart <nombre-del-proceso>`. No se cambia el nombre/configuración del proceso. `npm install` solo es necesario si faltan dependencias o cambia el manifiesto/lockfile; estas funciones no agregan dependencias.
+4. Ingresar como administrador, abrir Usuarios y asignar los territorios a personal/encargados existentes. Hasta hacerlo, sus peticiones operativas devolverán 403. Se puede seguir usando un único administrador general.
+5. Revisar los rangos del catálogo de vacunas y su unidad antes de registrar nuevas aplicaciones. Los valores existentes siguen en años; cambiar una unidad requiere revisar también sus números. Las aplicaciones históricas se conservan.
+6. Verificar una cuenta asignada y una cuenta de otro territorio, un control próximo/vencido y una vacuna dentro/fuera de rango. El scheduler reevalúa las alertas según las nuevas frecuencias al iniciar y en sus ciclos habituales.
+
+No hay asignación territorial automática basada en el nombre, rol o registros históricos de un empleado. La asignación administrativa desde la aplicación es necesaria para determinar su alcance real. Separar establecimientos distintos dentro del mismo territorio requeriría otra definición de alcance.

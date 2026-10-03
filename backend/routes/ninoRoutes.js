@@ -11,6 +11,7 @@ const router = express.Router();
  *     tags: [Niños]
  *     summary: Listar niños
  *     description: Disponible para admin, encargado y personal. Ordena por nombre completo y devuelve comunidad y nombres de padres poblados; sin paginación de servidor.
+ *     x-territorio: Personal y encargados requieren asignación; los filtros no amplían su acceso.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -79,6 +80,7 @@ router.get('/:id', proteger, obtenerPorId);
  *     tags: [Niños]
  *     summary: Registrar un niño
  *     description: Admin, encargado o personal. Calcula el nombre completo y genera código, PIN y URL del carnet. La comunidad se recibe explícitamente; los padres deben ser identificadores existentes.
+ *     x-territorio: Personal y encargados requieren asignación; los filtros no amplían su acceso.
  *     security:
  *       - bearerAuth: []
  *     requestBody:

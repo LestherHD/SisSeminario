@@ -1,3 +1,4 @@
+import { filtroPoblacion, poblacionPadres } from '../services/territorioService.js';
 import Nino from '../models/Nino.js';
 import { crearCredencialesCarnet } from '../services/carnetService.js';
 
@@ -38,10 +39,10 @@ export async function crear(req, res) {
 export async function listar(req, res) {
   try {
     const incluirInactivos = req.query.incluirInactivos === 'true';
-    const filtro = incluirInactivos ? {} : { activo: true };
+    const filtro = { ...(incluirInactivos ? {} : { activo: true }), ...filtroPoblacion(req) };
     const ninos = await Nino.find(filtro)
       .populate('comunidad', 'nombre departamento municipio activo')
-      .populate('padres', 'nombreCompleto')
+      .populate(poblacionPadres(req))
       .sort({ nombreCompleto: 1 });
 
     return res.status(200).json(ninos);
@@ -55,7 +56,7 @@ export async function obtenerPorId(req, res) {
     const { id } = req.params;
     const nino = await Nino.findById(id)
       .populate('comunidad', 'nombre departamento municipio activo')
-      .populate('padres', 'nombreCompleto');
+      .populate(poblacionPadres(req));
 
     if (!nino || nino.activo === false) {
       return res.status(404).json({ mensaje: 'Niño no encontrado' });

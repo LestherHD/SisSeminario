@@ -40,7 +40,7 @@ test('Dashboard: población compartida, compatibilidad, límites y validación',
     { _id: 'n2', activo: true, sexo: 'M', fechaNacimiento: nacimiento(7), comunidad: 'c1', padres: ['p1'] },
     { _id: 'n3', activo: false, sexo: 'F', fechaNacimiento: nacimiento(4), comunidad: 'c1', padres: ['p2'] },
   ];
-  const padres = ['p1', 'p2', 'p3'].map((_id) => ({ _id, activo: true }));
+  const padres = ['p1', 'p2', 'p3'].map((_id) => ({ _id, activo: true, comunidad: _id === 'p3' ? 'c2' : 'c1' }));
   const dosis = ['n1', 'n2', 'n3'].map((nino) => ({ nino, activo: true, fechaAplicada: hoy, proximaDosis: null }));
   const alertas = ['n1', 'n2', 'n3'].map((nino) => ({ nino, activo: true, atendida: false, tipo: 'critica', fecha: hoy }));
   const capturas = [];
@@ -61,9 +61,9 @@ test('Dashboard: población compartida, compatibilidad, límites y validación',
   const original = RegistroCrecimiento.findOne;
   t.after(() => { RegistroCrecimiento.findOne = original; });
   RegistroCrecimiento.findOne = ({ nino }) => consulta({ estadoNutricional: nino === 'n1' ? 'obesidad' : 'normal' });
-  async function pedir(query) {
+  async function pedir(query, territorio) {
     const res = { status(codigo) { this.codigo = codigo; return this; }, json(body) { this.body = body; return this; } };
-    await obtenerEstadisticas({ query }, res);
+    await obtenerEstadisticas({ query, territorio }, res);
     return res;
   }
   const general = await pedir({});
@@ -102,4 +102,13 @@ test('Dashboard: población compartida, compatibilidad, límites y validación',
   for (const query of [{ sexo: 'X' }, { edadMin: '-1' }, { edadMax: 'NaN' }, { edadMin: '6', edadMax: '5' }, { comunidad: ['a', 'b'] }, { edadMax: '1e99' }]) {
     assert.equal((await pedir(query)).codigo, 400);
   }
+  const territorio = { comunidades: ['c1'] };
+  const propio = await pedir({}, territorio);
+  assert.equal(propio.body.totales.ninos, 2);
+  assert.equal(propio.body.totales.comunidades, 1);
+  assert.equal(propio.body.totales.padres, 2);
+  const fuera = await pedir({ comunidad: 'Centro' }, territorio);
+  assert.equal(fuera.body.totales.ninos, 0);
+  assert.equal(fuera.body.totales.dosisAplicadas, 0);
+  assert.equal(fuera.body.totales.alertasActivas, 0);
 });

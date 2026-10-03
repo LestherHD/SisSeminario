@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const vacunaSchema = new mongoose.Schema(
   {
     nombre: { type: String, required: true, trim: true },
+    rangoEdadUnidad: { type: String, enum: ['anios', 'meses'], default: 'anios' },
     rangoEdad: {
       type: String,
       required: true,

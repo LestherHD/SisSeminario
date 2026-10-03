@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import SeguimientoCrecimiento from './SeguimientoCrecimiento.jsx';
 import {
   Alert,
   Box,
@@ -50,6 +51,7 @@ export default function Expediente({
   vacunas = [],
   crecimiento = [],
   alertasActivas = [],
+  control,
 }) {
   const [periodo, setPeriodo] = useState('todo');
   const vacunasEnProceso = vacunas.filter((vacuna) => vacuna.estado === 'En progreso');
@@ -66,6 +68,7 @@ export default function Expediente({
 
   return (
     <Stack spacing={3}>
+      <SeguimientoCrecimiento control={control} />
       <Box component="section">
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
           Datos del paciente

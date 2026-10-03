@@ -1,3 +1,4 @@
+import { evaluarEdadVacuna } from '../../shared/reglasSalud.mjs';
 import Comunidad from '../models/Comunidad.js';
 import Nino from '../models/Nino.js';
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
@@ -15,13 +16,6 @@ function redondear(valor, decimales = 1) {
 
 function edadAnios(fechaNacimiento, fecha = new Date()) {
   return Math.max(0, (fecha.getTime() - new Date(fechaNacimiento).getTime()) / MS_ANIO);
-}
-
-function rangoVacuna(rangoEdad) {
-  const coincidencia = /^(\d+)-(\d+)$/.exec(String(rangoEdad || ''));
-  return coincidencia
-    ? { minima: Number(coincidencia[1]), maxima: Number(coincidencia[2]) }
-    : null;
 }
 
 function etiquetaNutricional(estado) {
@@ -45,11 +39,11 @@ function filtrosUbicacion(query) {
   return filtro;
 }
 
-export async function generarDatosReporte(query = {}) {
+export async function generarDatosReporte(query = {}, territorio = null) {
   const opciones = opcionesReporte(query);
   const { filtros } = opciones;
   const hoy = new Date();
-  const comunidades = await Comunidad.find(filtrosUbicacion(filtros))
+  const comunidades = await Comunidad.find({ ...filtrosUbicacion(filtros), ...(territorio ? { _id: { $in: territorio.comunidades } } : {}) })
     .select('nombre departamento municipio')
     .sort({ departamento: 1, municipio: 1, nombre: 1 })
     .lean();
@@ -72,7 +66,7 @@ export async function generarDatosReporte(query = {}) {
     RegistroCrecimiento.find({ activo: true, nino: { $in: idsNinos } })
       .sort({ fecha: -1 })
       .lean(),
-    query.soloConteo === true ? [] : Vacuna.find({ activo: true }).select('nombre rangoEdad numeroDosis').lean(),
+    query.soloConteo === true ? [] : Vacuna.find({ activo: true }).select('nombre rangoEdad rangoEdadUnidad numeroDosis').lean(),
     query.soloConteo === true ? [] : Vacunacion.find({ activo: true, nino: { $in: idsNinos } })
       .select('nino vacuna numeroDosis fechaAplicada proximaDosis')
       .sort({ fechaAplicada: -1 })
@@ -183,8 +177,7 @@ export async function generarDatosReporte(query = {}) {
     }
 
     const vacunasEdad = vacunas.filter((vacuna) => {
-      const rango = rangoVacuna(vacuna.rangoEdad);
-      return rango && edadExacta >= rango.minima && edadExacta < rango.maxima + 1;
+      return evaluarEdadVacuna(vacuna, nino.fechaNacimiento, hoy).permitida;
     });
     const cobertura = coberturaPorComunidad.get(String(nino.comunidad));
     cobertura.ninos += 1;
@@ -266,6 +259,6 @@ export async function generarDatosReporte(query = {}) {
   return opciones.general ? { ...datos, tablas } : { generadoEn: hoy, filtros, opciones, coincidencias: ninos.length, tablas };
 }
 
-export async function contarNinosReporte(query = {}) {
-  return generarDatosReporte({ ...query, soloConteo: true });
+export async function contarNinosReporte(query = {}, territorio = null) {
+  return generarDatosReporte({ ...query, soloConteo: true }, territorio);
 }

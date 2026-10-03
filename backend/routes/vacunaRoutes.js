@@ -29,9 +29,9 @@ const router = express.Router();
  */
 router.get('/', proteger, listar);
 router.get('/:id', proteger, obtenerPorId);
-router.post('/', proteger, autorizar('admin', 'encargado'), crear);
-router.put('/:id', proteger, autorizar('admin', 'encargado'), actualizar);
-router.delete('/:id', proteger, autorizar('admin', 'encargado'), eliminar);
-router.patch('/:id/reactivar', proteger, autorizar('admin', 'encargado'), reactivar);
+router.post('/', proteger, autorizar('admin'), crear);
+router.put('/:id', proteger, autorizar('admin'), actualizar);
+router.delete('/:id', proteger, autorizar('admin'), eliminar);
+router.patch('/:id/reactivar', proteger, autorizar('admin'), reactivar);
 
 export default router;

@@ -1,3 +1,4 @@
+import { filtroPoblacion, filtroComunidades } from '../services/territorioService.js';
 import Nino from '../models/Nino.js';
 import Comunidad from '../models/Comunidad.js';
 import Padre from '../models/Padre.js';
@@ -51,9 +52,9 @@ export async function obtenerEstadisticas(req, res) {
       return res.status(400).json({ mensaje: 'La edad mínima no puede superar la máxima.' });
     }
     const hayFiltros = Object.values(filtros).some((valor) => valor !== '');
-    const filtroNinos = { activo: true };
+    const filtroNinos = { activo: true, ...filtroPoblacion(req) };
     if (filtros.departamento || filtros.municipio || filtros.comunidad) {
-      const filtroComunidades = { activo: true };
+      const filtroComunidades = { activo: true, ...(req.territorio ? { _id: { $in: req.territorio.comunidades } } : {}) };
       for (const campo of ['departamento', 'municipio']) {
         if (filtros[campo]) filtroComunidades[campo] = filtros[campo];
       }
@@ -86,8 +87,8 @@ export async function obtenerEstadisticas(req, res) {
 
     const totales = {
       ninos: ninosActivos.length,
-      comunidades: await Comunidad.countDocuments({ activo: true, ...(hayFiltros ? { _id: { $in: idsComunidades } } : {}) }),
-      padres: await Padre.countDocuments({ activo: true, ...(hayFiltros ? { _id: { $in: idsPadres } } : {}) }),
+      comunidades: await Comunidad.countDocuments({ activo: true, ...(hayFiltros ? { _id: { $in: idsComunidades } } : filtroComunidades(req)) }),
+      padres: await Padre.countDocuments({ activo: true, ...filtroPoblacion(req), ...(hayFiltros ? { _id: { $in: idsPadres } } : {}) }),
       dosisAplicadas: await Vacunacion.countDocuments({ activo: true, ...filtroRelacion }),
       alertasActivas: await Alerta.countDocuments(filtroAlertas),
       alertasCriticas: await Alerta.countDocuments({

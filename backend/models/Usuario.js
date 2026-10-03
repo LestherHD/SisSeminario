@@ -7,6 +7,13 @@ const usuarioSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     rol: { type: String, enum: ['admin', 'personal', 'encargado'], default: 'personal' },
+    territorios: { type: [{
+      _id: false,
+      alcance: { type: String, enum: ['municipio', 'comunidad'], required: true },
+      departamento: { type: String, required: true, trim: true },
+      municipio: { type: String, required: true, trim: true },
+      comunidad: { type: mongoose.Schema.Types.ObjectId, ref: 'Comunidad' },
+    }], default: [] },
     activo: { type: Boolean, default: true },
     emailVerificado: { type: Boolean, default: true },
     verificacionEmailToken: { type: String, select: false },

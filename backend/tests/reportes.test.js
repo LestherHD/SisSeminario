@@ -60,6 +60,10 @@ test('Reportes: población, última medición, presentación y exportaciones HTT
     };
   }
   const general = await generarDatosReporte();
+  const propio = await generarDatosReporte({}, { comunidades: ['c1'] });
+  assert.equal(propio.resumen.ninos, 2);
+  assert.ok(!JSON.stringify(propio).includes('Eva Prueba'));
+  assert.equal((await contarNinosReporte({ comunidad: 'Centro' }, { comunidades: ['c1'] })).ninos, 0);
   assert.equal(general.resumen.ninos, 3);
   assert.equal(general.tablas.length, 5);
   assert.equal(general.listadoNutricional.length, 3);

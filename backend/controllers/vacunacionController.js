@@ -1,17 +1,28 @@
 import Vacunacion from '../models/Vacunacion.js';
+import mongoose from 'mongoose';
 import Vacuna from '../models/Vacuna.js';
+import Nino from '../models/Nino.js';
+import { evaluarEdadVacuna, fechaDia } from '../../shared/reglasSalud.mjs';
 import { calcularProximaDosis } from '../utils/calculos.js';
 import { analizarNino } from '../utils/motorAlertas.js';
 
 export async function registrar(req, res) {
   try {
     const { nino, vacuna, fechaAplicada } = req.body;
+    if (!mongoose.isObjectIdOrHexString(nino) || !mongoose.isObjectIdOrHexString(vacuna)) return res.status(400).json({ mensaje: 'Seleccione un niño y una vacuna válidos.' });
 
     const vacunaCatalogo = await Vacuna.findById(vacuna).lean();
 
-    if (!vacunaCatalogo) {
+    if (!vacunaCatalogo || vacunaCatalogo.activo === false) {
       return res.status(404).json({ mensaje: 'Vacuna no encontrada' });
     }
+
+    const paciente = await Nino.findOne({ _id: nino, activo: true }).lean();
+    if (!paciente) return res.status(404).json({ mensaje: 'Niño no encontrado o inactivo.' });
+    const fecha = fechaDia(fechaAplicada);
+    if (!fecha || fecha > fechaDia(new Date())) return res.status(400).json({ mensaje: 'La fecha de aplicación debe ser válida y no futura.' });
+    const validacionEdad = evaluarEdadVacuna(vacunaCatalogo, paciente.fechaNacimiento, fecha);
+    if (!validacionEdad.permitida) return res.status(400).json({ mensaje: validacionEdad.motivo });
 
     const aplicadas = await Vacunacion.countDocuments({ nino, vacuna, activo: true });
     const numeroDosis = aplicadas + 1;

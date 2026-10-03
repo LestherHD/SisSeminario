@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import Usuario from '../models/Usuario.js';
+import { validarTerritorios } from '../services/territorioService.js';
 import {
   enviarCodigoRecuperacion,
   enviarCodigoVerificacionInicial,
@@ -84,6 +85,7 @@ export async function registrar(req, res) {
       email,
       password,
       rol,
+      territorios: await validarTerritorios(req.body.territorios ?? []),
     });
 
     return res.status(201).json({
@@ -93,10 +95,11 @@ export async function registrar(req, res) {
         nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
+        territorios: usuario.territorios,
       },
     });
   } catch (error) {
-    return res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
+    return res.status(error.status || 500).json({ mensaje: error.status ? error.message : 'Error del servidor' });
   }
 }
 
@@ -128,6 +131,7 @@ export async function login(req, res) {
         nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
+        territorios: usuario.territorios,
       },
     });
   } catch (error) {

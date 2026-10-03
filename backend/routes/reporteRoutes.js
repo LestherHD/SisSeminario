@@ -133,6 +133,7 @@ const router = express.Router();
  *     tags: [Reportes]
  *     summary: Generar datos del reporte
  *     description: Solo admin y encargado. Niños y comunidades activos. Las tablas personalizadas contienen únicamente secciones y columnas seleccionadas.
+ *     x-territorio: Personal y encargados requieren asignación; los filtros no amplían su acceso.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -175,6 +176,7 @@ const router = express.Router();
  *     tags: [Reportes]
  *     summary: Contar niños de la población seleccionada
  *     description: Solo admin y encargado. Niños y comunidades activos. Las tablas personalizadas contienen únicamente secciones y columnas seleccionadas.
+ *     x-territorio: Personal y encargados requieren asignación; los filtros no amplían su acceso.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -207,6 +209,7 @@ const router = express.Router();
  *     tags: [Reportes]
  *     summary: Exportar reporte PDF
  *     description: Solo admin y encargado. Niños y comunidades activos. Las tablas personalizadas contienen únicamente secciones y columnas seleccionadas.
+ *     x-territorio: Personal y encargados requieren asignación; los filtros no amplían su acceso.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -252,6 +255,7 @@ const router = express.Router();
  *     tags: [Reportes]
  *     summary: Exportar reporte Excel
  *     description: Solo admin y encargado. Niños y comunidades activos. Las tablas personalizadas contienen únicamente secciones y columnas seleccionadas.
+ *     x-territorio: Personal y encargados requieren asignación; los filtros no amplían su acceso.
  *     security:
  *       - bearerAuth: []
  *     parameters:

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import {
   Box,
+  Alert,
   Drawer,
   AppBar,
   Toolbar,
@@ -275,6 +276,9 @@ export default function Layout() {
         }}
       >
         <Toolbar />
+        {usuario?.rol !== 'admin' && !usuario?.territorios?.length && <Alert severity="warning" sx={{ m: 2 }}>
+          Su cuenta está pendiente de asignación territorial. Solicite al administrador que le asigne un municipio o comunidad en Usuarios.
+        </Alert>}
         <Outlet />
       </Box>
     </Box>

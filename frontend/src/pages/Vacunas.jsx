@@ -40,8 +40,8 @@ function rangoEdadValido(valor) {
   return Boolean(coincidencia && Number(coincidencia[1]) <= Number(coincidencia[2]));
 }
 
-function textoRangoEdad(valor) {
-  return valor ? `${valor} años` : '—';
+function textoRangoEdad(valor, unidad = 'anios') {
+  return valor ? `${valor} ${unidad === 'meses' ? 'meses' : 'años'}` : '—';
 }
 
 function textoUnidadIntervalo(unidad) {
@@ -50,7 +50,7 @@ function textoUnidadIntervalo(unidad) {
 
 export default function Vacunas() {
   const { usuario } = useAuth();
-  const puedeGestionar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
+  const puedeGestionar = usuario?.rol === 'admin';
   const [vacunas, setVacunas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -66,6 +66,7 @@ export default function Vacunas() {
   const [form, setForm] = useState({
     nombre: '',
     rangoEdad: '',
+    rangoEdadUnidad: 'meses',
     dosisMl: '',
     numeroDosis: 1,
     intervaloValor: 0,
@@ -90,13 +91,19 @@ export default function Vacunas() {
   };
 
   useEffect(() => {
-    cargarVacunas();
+    let vigente = true;
+    api.get(mostrarInactivos ? '/vacunas?incluirInactivos=true' : '/vacunas')
+      .then(({ data }) => { if (vigente) { setVacunas(data); setError(''); } })
+      .catch((errorCarga) => { if (vigente) setError(errorCarga.response?.data?.mensaje || 'Error al cargar vacunas'); })
+      .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
   }, [mostrarInactivos]);
 
   const abrirCrear = () => {
     setForm({
       nombre: '',
       rangoEdad: '',
+      rangoEdadUnidad: 'meses',
       dosisMl: '',
       numeroDosis: 1,
       intervaloValor: 0,
@@ -116,6 +123,7 @@ export default function Vacunas() {
         (vacuna.edadRecomendada != null
           ? `${vacuna.edadRecomendada}-${vacuna.edadRecomendada}`
           : ''),
+      rangoEdadUnidad: vacuna.rangoEdadUnidad || 'anios',
       dosisMl: vacuna.dosisMl ?? '',
       numeroDosis: vacuna.numeroDosis ?? vacuna.dosisTotales ?? 1,
       intervaloValor: vacuna.intervaloValor ?? vacuna.intervaloMeses ?? 0,
@@ -171,6 +179,7 @@ export default function Vacunas() {
       const payload = {
         nombre: form.nombre.trim(),
         rangoEdad: form.rangoEdad.trim(),
+        rangoEdadUnidad: form.rangoEdadUnidad,
         dosisMl: form.dosisMl === '' ? null : Number(form.dosisMl),
         numeroDosis: Number(form.numeroDosis),
         intervaloValor: Number(form.numeroDosis) <= 1 ? 0 : Number(form.intervaloValor),
@@ -198,8 +207,8 @@ export default function Vacunas() {
     { label: 'Nombre', valor: form.nombre, valorAnterior: editando?.nombre },
     {
       label: 'Rango de edad (años)',
-      valor: form.rangoEdad ? textoRangoEdad(form.rangoEdad) : 'No especificado',
-      valorAnterior: editando?.rangoEdad ? textoRangoEdad(editando.rangoEdad) : undefined,
+      valor: form.rangoEdad ? textoRangoEdad(form.rangoEdad, form.rangoEdadUnidad) : 'No especificado',
+      valorAnterior: editando?.rangoEdad ? textoRangoEdad(editando.rangoEdad, editando.rangoEdadUnidad) : undefined,
     },
     {
       label: 'Dosis (ml)',
@@ -284,7 +293,7 @@ export default function Vacunas() {
               control={
                 <Switch
                   checked={mostrarInactivos}
-                  onChange={(e) => setMostrarInactivos(e.target.checked)}
+                  onChange={(e) => { setCargando(true); setMostrarInactivos(e.target.checked); }}
                 />
               }
               label="Mostrar inactivas"
@@ -329,7 +338,7 @@ export default function Vacunas() {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Rango de edad (años)</TableCell>
+                  <TableCell>Rango de edad permitido</TableCell>
                   <TableCell>Dosis (ml)</TableCell>
                   <TableCell>N° Dosis</TableCell>
                   <TableCell>Intervalo</TableCell>
@@ -342,7 +351,7 @@ export default function Vacunas() {
                   vacunasFiltradas.map((vacuna) => (
                     <TableRow key={vacuna._id}>
                       <TableCell>{vacuna.nombre}</TableCell>
-                      <TableCell>{textoRangoEdad(vacuna.rangoEdad)}</TableCell>
+                      <TableCell>{textoRangoEdad(vacuna.rangoEdad, vacuna.rangoEdadUnidad)}</TableCell>
                       <TableCell>{vacuna.dosisMl != null ? `${vacuna.dosisMl} ml` : '—'}</TableCell>
                       <TableCell>{vacuna.numeroDosis ?? 1}</TableCell>
                       <TableCell>
@@ -419,7 +428,7 @@ export default function Vacunas() {
               }}
             />
             <TextField
-              label="Rango de edad recomendada (años)"
+              label="Rango de edad permitido"
               required
               fullWidth
               placeholder="ej. 0-1"
@@ -427,7 +436,7 @@ export default function Vacunas() {
               helperText={
                 form.rangoEdad !== '' && !rangoEdadValido(form.rangoEdad)
                   ? 'Formato incorrecto. Use solamente números y un guion, por ejemplo: 0-1'
-                  : 'Ingrese el rango en años: 0-1, 1-3, 5-10'
+                  : 'Límites incluidos en unidades cumplidas: 2-5 meses permite desde los 2 hasta antes de cumplir 6 meses.'
               }
               value={form.rangoEdad}
               onChange={(e) => {
@@ -435,6 +444,14 @@ export default function Vacunas() {
                 setErrorFormulario('');
               }}
             />
+            <TextField
+              select label="Unidad del rango de edad" value={form.rangoEdadUnidad}
+              onChange={(e) => setForm({ ...form, rangoEdadUnidad: e.target.value })}
+              helperText="Los registros anteriores conservan años. Cambie la unidad solo después de revisar el rango."
+            >
+              <MenuItem value="meses">Meses</MenuItem>
+              <MenuItem value="anios">Años</MenuItem>
+            </TextField>
             <TextField
               label="Dosis (ml)"
               type="number"

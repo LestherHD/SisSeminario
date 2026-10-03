@@ -1,3 +1,4 @@
+import { controlCrecimiento } from '../../shared/reglasSalud.mjs';
 import Nino from '../models/Nino.js';
 import RegistroCrecimiento from '../models/RegistroCrecimiento.js';
 import Vacunacion from '../models/Vacunacion.js';
@@ -8,7 +9,6 @@ import { enviarMensajeTelegram } from '../services/telegramService.js';
 import { enviarAlertaEmail } from '../services/emailService.js';
 
 const DIA_MS = 1000 * 60 * 60 * 24;
-const MES_PROMEDIO_MS = DIA_MS * 30.4375;
 
 async function buscarAlertaActiva(ninoId, motivo) {
   return Alerta.findOne({
@@ -88,13 +88,9 @@ export async function analizarNino(ninoId) {
   }).sort({ fecha: -1 });
 
   const ahora = new Date();
-  const edadMeses = Math.max(
-    0,
-    (ahora.getTime() - new Date(nino.fechaNacimiento).getTime()) / MES_PROMEDIO_MS
-  );
-  const mesesControl = edadMeses < 24 ? 1 : 3;
-  const fechaLimiteControl = new Date(ahora.getTime() - mesesControl * MES_PROMEDIO_MS);
-  const sinControlReciente = !ultimoRegistro || ultimoRegistro.fecha < fechaLimiteControl;
+  const control = controlCrecimiento(nino.fechaNacimiento, ultimoRegistro?.fecha, ahora);
+  const mesesControl = control?.meses;
+  const sinControlReciente = Boolean(control?.vencido);
 
   const inicioHoyUtc = new Date(ahora);
   inicioHoyUtc.setUTCHours(0, 0, 0, 0);
@@ -142,7 +138,7 @@ export async function analizarNino(ninoId) {
     sin_registros: {
       activa: sinControlReciente,
       tipo: 'preventiva',
-      mensaje: `${nino.nombreCompleto} no cuenta con un registro de crecimiento en ${mesesControl === 1 ? 'el último mes' : 'los últimos 3 meses'}. Por favor acuda al centro de salud para realizar su control.`,
+      mensaje: `${nino.nombreCompleto} no cuenta con un registro de crecimiento en ${mesesControl === 1 ? 'el último mes' : `los últimos ${mesesControl} meses`}. Por favor acuda al centro de salud para realizar su control.`,
     },
     vacuna_proxima: {
       activa: Boolean(dosisProxima),
@@ -197,8 +193,8 @@ export async function analizarNino(ninoId) {
   return { creadas, resueltas };
 }
 
-export async function analizarTodos() {
-  const ninos = await Nino.find({ activo: true });
+export async function analizarTodos(idsNinos) {
+  const ninos = await Nino.find({ activo: true, ...(idsNinos ? { _id: { $in: idsNinos } } : {}) });
 
   let total = 0;
 

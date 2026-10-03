@@ -102,12 +102,12 @@ function responderError(res, error, mensaje) {
 }
 
 export async function obtenerReporte(req, res) {
-  try { return res.status(200).json(await generarDatosReporte(req.query)); }
+  try { return res.status(200).json(await generarDatosReporte(req.query, req.territorio)); }
   catch (error) { return responderError(res, error, 'Error al generar el reporte'); }
 }
 
 export async function obtenerConteo(req, res) {
-  try { return res.status(200).json(await contarNinosReporte(req.query)); }
+  try { return res.status(200).json(await contarNinosReporte(req.query, req.territorio)); }
   catch (error) { return responderError(res, error, 'Error al contar los niños'); }
 }
 
@@ -118,7 +118,7 @@ function filasFormateadas(tabla) {
 
 export async function exportarPdf(req, res) {
   try {
-    const datos = await generarDatosReporte(req.query);
+    const datos = await generarDatosReporte(req.query, req.territorio);
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 36 });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo('pdf')}"`);
@@ -138,7 +138,7 @@ const NOMBRES_HOJAS = { resumenCantidades: 'Resumen', listadoNutricional: 'Estad
 
 export async function exportarExcel(req, res) {
   try {
-    const datos = await generarDatosReporte(req.query);
+    const datos = await generarDatosReporte(req.query, req.territorio);
     const libro = new ExcelJS.Workbook();
     libro.creator = 'SCCVI';
     libro.created = new Date();

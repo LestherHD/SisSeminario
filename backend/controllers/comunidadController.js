@@ -1,3 +1,4 @@
+import { filtroComunidades } from '../services/territorioService.js';
 import Comunidad from '../models/Comunidad.js';
 import Nino from '../models/Nino.js';
 
@@ -41,7 +42,7 @@ export async function crear(req, res) {
 export async function listar(req, res) {
   try {
     const incluirInactivos = req.query.incluirInactivos === 'true';
-    const filtro = incluirInactivos ? {} : { activo: true };
+    const filtro = { ...(incluirInactivos ? {} : { activo: true }), ...filtroComunidades(req) };
     const comunidades = await Comunidad.find(filtro).sort({ nombre: 1 }).lean();
     const comunidadesConFamilias = await Promise.all(
       comunidades.map(async (comunidad) => {

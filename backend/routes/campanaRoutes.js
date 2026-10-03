@@ -18,6 +18,7 @@ const router = express.Router();
  *     tags: [Campañas]
  *     summary: Listar campañas comunitarias
  *     description: Disponible para cualquier usuario autenticado. Incluye campañas activas con comunidad y estado temporal calculado en Guatemala.
+ *     x-territorio: Personal y encargados requieren asignación; los filtros no amplían su acceso.
  *     security:
  *       - bearerAuth: []
  *     responses:

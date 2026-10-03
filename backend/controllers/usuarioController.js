@@ -1,3 +1,4 @@
+import { validarTerritorios } from '../services/territorioService.js';
 import Usuario from '../models/Usuario.js';
 
 const ROLES = ['admin', 'encargado', 'personal'];
@@ -45,6 +46,7 @@ export async function actualizar(req, res) {
     const emailOcupado = await Usuario.exists({ email, _id: { $ne: usuario._id } });
     if (emailOcupado) return res.status(400).json({ mensaje: 'El correo ya está registrado' });
 
+    if (Object.hasOwn(req.body, 'territorios')) usuario.territorios = await validarTerritorios(req.body.territorios);
     usuario.nombre = nombre;
     usuario.email = email;
     usuario.rol = rol;
@@ -56,9 +58,10 @@ export async function actualizar(req, res) {
       email: usuario.email,
       rol: usuario.rol,
       activo: usuario.activo,
+      territorios: usuario.territorios,
     });
   } catch (error) {
-    return res.status(500).json({ mensaje: 'Error al actualizar el usuario', error: error.message });
+    return res.status(error.status || 500).json({ mensaje: error.status ? error.message : 'Error al actualizar el usuario' });
   }
 }
 

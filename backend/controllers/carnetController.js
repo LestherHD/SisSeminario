@@ -1,3 +1,5 @@
+import { controlCrecimiento } from '../../shared/reglasSalud.mjs';
+import { poblacionPadres } from '../services/territorioService.js';
 import QRCode from 'qrcode';
 import Nino from '../models/Nino.js';
 import Vacunacion from '../models/Vacunacion.js';
@@ -33,7 +35,7 @@ export async function generarCarnet(req, res) {
 
 export async function enviarCarnetTelegram(req, res) {
   try {
-    const nino = await Nino.findById(req.params.ninoId).populate('padres');
+    const nino = await Nino.findById(req.params.ninoId).populate(poblacionPadres(req, 'nombreCompleto metodoContacto telegramChatId email'));
 
     if (!nino) {
       return res.status(404).json({ mensaje: 'Niño no encontrado' });
@@ -74,10 +76,10 @@ export async function enviarCarnetTelegram(req, res) {
   }
 }
 
-export async function armarExpediente(ninoId) {
+export async function armarExpediente(ninoId, req = {}) {
   const nino = await Nino.findOne({ _id: ninoId, activo: true })
     .populate('comunidad', 'nombre departamento municipio')
-    .populate('padres', 'nombreCompleto')
+    .populate(poblacionPadres(req))
     .lean();
 
   if (!nino) {
@@ -138,6 +140,7 @@ export async function armarExpediente(ninoId) {
       padres,
     },
     padres,
+    control: controlCrecimiento(nino.fechaNacimiento, crecimiento[0]?.fecha),
     vacunas,
     crecimiento: crecimiento.map((registro) => ({
       _id: registro._id,
@@ -185,7 +188,7 @@ export async function verCarnetPublico(req, res) {
 
 export async function verExpedienteInterno(req, res) {
   try {
-    const expediente = await armarExpediente(req.params.ninoId);
+    const expediente = await armarExpediente(req.params.ninoId, req);
 
     if (!expediente) {
       return res.status(404).json({ mensaje: 'Niño no encontrado' });

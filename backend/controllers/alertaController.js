@@ -1,10 +1,11 @@
+import { filtroNinos } from '../services/territorioService.js';
 import Alerta from '../models/Alerta.js';
 import { analizarTodos } from '../utils/motorAlertas.js';
 
 export async function listar(req, res) {
   try {
     const soloActivas = req.query.soloActivas !== 'false';
-    const filtro = { activo: true };
+    const filtro = { activo: true, ...filtroNinos(req) };
 
     if (soloActivas) {
       filtro.atendida = false;
@@ -56,7 +57,7 @@ export async function eliminar(req, res) {
 
 export async function analizar(req, res) {
   try {
-    const total = await analizarTodos();
+    const total = await analizarTodos(req.territorio?.ninos);
 
     return res.status(200).json({
       mensaje: `Análisis completo. ${total} alertas nuevas generadas.`,

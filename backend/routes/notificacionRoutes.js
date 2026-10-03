@@ -4,7 +4,7 @@ import { proteger, autorizar } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.post('/prueba', proteger, autorizar('admin', 'encargado'), prueba);
+router.post('/prueba', proteger, autorizar('admin'), prueba);
 router.post('/prueba-email', proteger, autorizar('admin'), pruebaEmail);
 /**
  * @openapi

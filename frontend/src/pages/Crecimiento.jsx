@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import SeguimientoCrecimiento from '../components/SeguimientoCrecimiento.jsx';
 import { useSearchParams } from 'react-router-dom';
 import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -360,6 +361,7 @@ export default function Crecimiento() {
 
         {ninoSeleccionado && (
           <>
+            {!cargando && !error && <SeguimientoCrecimiento control={curvasOms?.control} />}
             <Box
               sx={{
                 display: 'flex',

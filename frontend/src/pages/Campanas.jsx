@@ -609,8 +609,8 @@ export default function Campanas() {
                 });
               }}
             >
-              <MenuItem value="departamento">Departamento completo</MenuItem>
-              <MenuItem value="municipio">Municipio completo</MenuItem>
+              {usuario?.rol === 'admin' && <MenuItem value="departamento">Departamento completo</MenuItem>}
+              <MenuItem value="municipio" disabled={usuario?.rol !== 'admin' && !usuario?.territorios?.some((t) => t.alcance === 'municipio')}>Municipio completo</MenuItem>
               <MenuItem value="comunidad">Comunidad / aldea específica</MenuItem>
             </TextField>
             <Autocomplete

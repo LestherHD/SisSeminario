@@ -41,6 +41,7 @@ import { departamentos } from '../data/guatemala.js';
 export default function Comunidades() {
   const { usuario } = useAuth();
   const puedeGestionar = ['admin', 'encargado', 'personal'].includes(usuario?.rol);
+  const puedeCrear = usuario?.rol === 'admin' || usuario?.territorios?.some((t) => t.alcance === 'municipio');
   const puedeEliminar = usuario?.rol === 'admin' || usuario?.rol === 'encargado';
   const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -165,7 +166,12 @@ export default function Comunidades() {
   };
 
   useEffect(() => {
-    cargarComunidades();
+    let vigente = true;
+    api.get(mostrarInactivos ? '/comunidades?incluirInactivos=true' : '/comunidades')
+      .then(({ data }) => { if (vigente) { setComunidades(data); setError(''); } })
+      .catch((errorCarga) => { if (vigente) setError(errorCarga.response?.data?.mensaje || 'Error al cargar comunidades'); })
+      .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
   }, [mostrarInactivos]);
 
   const grupos = Array.from(
@@ -249,7 +255,7 @@ export default function Comunidades() {
               }
               label="Mostrar inactivas"
             />
-            {puedeGestionar && (
+            {puedeCrear && (
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
@@ -427,7 +433,7 @@ export default function Comunidades() {
           </TableContainer>
         </DialogContent>
         <DialogActions>
-          {puedeGestionar && grupoVisible && (
+          {puedeCrear && grupoVisible && (usuario?.rol === 'admin' || usuario?.territorios?.some((t) => t.alcance === 'municipio' && t.departamento === grupoVisible.departamento && t.municipio === grupoVisible.municipio)) && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -450,7 +456,8 @@ export default function Comunidades() {
               </Alert>
             )}
             <Autocomplete
-              options={departamentos.map((item) => item.departamento)}
+              options={departamentos.filter((item) => usuario?.rol === 'admin' || usuario?.territorios?.some((t) => t.departamento === item.departamento && t.alcance === 'municipio') || (editando && item.departamento === form.departamento)).map((item) => item.departamento)}
+              disabled={Boolean(editando && usuario?.rol !== 'admin')}
               value={form.departamento || null}
               onChange={(event, departamento) => setForm({
                 ...form,
@@ -464,15 +471,14 @@ export default function Comunidades() {
             />
             <Autocomplete
               options={
-                departamentos.find((item) => item.departamento === form.departamento)
-                  ?.municipios || []
+                (departamentos.find((item) => item.departamento === form.departamento)?.municipios || []).filter((m) => usuario?.rol === 'admin' || usuario?.territorios?.some((t) => t.alcance === 'municipio' && t.departamento === form.departamento && t.municipio === m) || (editando && m === form.municipio))
               }
               value={form.municipio || null}
               onChange={(event, municipio) => setForm({
                 ...form,
                 municipio: municipio || '',
               })}
-              disabled={!form.departamento}
+              disabled={!form.departamento || Boolean(editando && usuario?.rol !== 'admin')}
               renderInput={(params) => (
                 <TextField {...params} label="Municipio" required />
               )}

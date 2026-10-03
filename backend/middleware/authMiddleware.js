@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import Usuario from '../models/Usuario.js';
+import { prepararTerritorio } from '../services/territorioService.js';
 
 export async function proteger(req, res, next) {
   try {
@@ -26,6 +27,11 @@ export async function proteger(req, res, next) {
     }
 
     req.usuario = usuario;
+    try {
+      await prepararTerritorio(req);
+    } catch (error) {
+      return res.status(error.status || 500).json({ mensaje: error.status ? error.message : 'Error al comprobar el territorio autorizado.' });
+    }
     return next();
   } catch (error) {
     return res.status(401).json({ mensaje: 'Token inválido o expirado' });

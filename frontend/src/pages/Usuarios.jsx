@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Autocomplete,
   Alert,
   Box,
   Button,
@@ -41,6 +42,7 @@ const FORM_INICIAL = {
   rol: 'personal',
   password: '',
   confirmarPassword: '',
+  territorios: [],
 };
 
 const NOMBRES_ROL = {
@@ -52,6 +54,7 @@ const NOMBRES_ROL = {
 export default function Usuarios() {
   const { usuario: usuarioActual } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
+  const [comunidades, setComunidades] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -81,8 +84,8 @@ export default function Usuarios() {
 
     async function cargarInicial() {
       try {
-        const response = await api.get('/usuarios');
-        if (activo) setUsuarios(response.data);
+        const [response, catalogo] = await Promise.all([api.get('/usuarios'), api.get('/comunidades')]);
+        if (activo) { setUsuarios(response.data); setComunidades(catalogo.data); }
       } catch (errorCarga) {
         if (activo) setError(errorCarga.response?.data?.mensaje || 'Error al cargar usuarios');
       } finally {
@@ -120,6 +123,7 @@ export default function Usuarios() {
       rol: usuario.rol,
       password: '',
       confirmarPassword: '',
+      territorios: usuario.territorios || [],
     });
     setErrorFormulario('');
     setDialogoAbierto(true);
@@ -146,12 +150,14 @@ export default function Usuarios() {
           nombre: form.nombre,
           email: form.email,
           rol: form.rol,
+          territorios: form.territorios,
         });
       } else {
         await api.post('/usuarios', {
           nombre: form.nombre,
           email: form.email,
           rol: form.rol,
+          territorios: form.territorios,
           password: form.password,
         });
       }
@@ -183,6 +189,11 @@ export default function Usuarios() {
     }
   };
 
+  const opcionesTerritorios = [
+    ...[...new Map(comunidades.map((c) => [`${c.departamento}/${c.municipio}`, { alcance: 'municipio', departamento: c.departamento, municipio: c.municipio }])).values()],
+    ...comunidades.map((c) => ({ alcance: 'comunidad', comunidad: c._id, departamento: c.departamento, municipio: c.municipio })),
+  ];
+  const etiquetaTerritorio = (t) => `${t.departamento} / ${t.municipio} / ${t.alcance === 'municipio' ? 'Todo el municipio' : comunidades.find((c) => c._id === t.comunidad)?.nombre || 'Comunidad inactiva o no disponible'}`;
   const idActual = usuarioActual?._id || usuarioActual?.id;
   const acciones = (usuario) => {
     const esPropio = usuario._id === idActual;
@@ -267,7 +278,7 @@ export default function Usuarios() {
                   <TableRow key={usuario._id} hover>
                     <TableCell>{usuario.nombre}{usuario._id === idActual ? ' (usted)' : ''}</TableCell>
                     <TableCell>{usuario.email}</TableCell>
-                    <TableCell>{NOMBRES_ROL[usuario.rol] || usuario.rol}</TableCell>
+                    <TableCell>{NOMBRES_ROL[usuario.rol] || usuario.rol}<Typography variant="caption" display="block">{usuario.rol === 'admin' ? 'Acceso general' : usuario.territorios?.length ? usuario.territorios.map(etiquetaTerritorio).join(' · ') : 'Pendiente de asignación'}</Typography></TableCell>
                     <TableCell>
                       <Chip size="small" color={usuario.activo ? 'success' : 'default'} label={usuario.activo ? 'Activo' : 'Inactivo'} />
                     </TableCell>
@@ -318,6 +329,16 @@ export default function Usuarios() {
                 <MenuItem value="encargado">Encargado</MenuItem>
                 <MenuItem value="admin">Administrador</MenuItem>
               </TextField>
+              {form.rol !== 'admin' ? <>
+                <Autocomplete multiple options={opcionesTerritorios} value={form.territorios}
+                  getOptionLabel={etiquetaTerritorio}
+                  isOptionEqualToValue={(a, b) => a.alcance === b.alcance && (a.alcance === 'comunidad' ? a.comunidad === b.comunidad : a.departamento === b.departamento && a.municipio === b.municipio)}
+                  onChange={(_, territorios) => setForm({ ...form, territorios })}
+                  renderInput={(params) => <TextField {...params} label="Municipios o comunidades autorizados" />} />
+                <Alert severity={form.territorios.length ? 'info' : 'warning'}>
+                  {form.territorios.length ? 'Puede asignar varios territorios y compartirlos entre varias enfermeras. Un municipio incluye sus comunidades actuales y futuras.' : 'Sin asignación, esta cuenta podrá iniciar sesión pero no acceder a datos clínicos. Asigne primero al menos un territorio.'}
+                </Alert>
+              </> : <Alert severity="info">El administrador tiene acceso a todos los territorios.</Alert>}
               {!editando && (
                 <>
                   <TextField type="password" label="Contraseña" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} helperText="Mínimo 8 caracteres, con mayúscula, minúscula y número." />

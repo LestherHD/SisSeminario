@@ -1,3 +1,4 @@
+import { poblacionPadres } from '../services/territorioService.js';
 import { enviarMensajeTelegram } from '../services/telegramService.js';
 import Notificacion from '../models/Notificacion.js';
 import Alerta from '../models/Alerta.js';
@@ -54,7 +55,7 @@ export async function notificarAlerta(req, res) {
       return res.status(404).json({ mensaje: 'Alerta no encontrada' });
     }
 
-    const nino = await Nino.findById(alerta.nino._id).populate('padres');
+    const nino = await Nino.findById(alerta.nino._id).populate(poblacionPadres(req, 'nombreCompleto metodoContacto telegramChatId email'));
     const padres = nino.padres || [];
     let enviadas = 0;
     let intentos = 0;
