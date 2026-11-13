@@ -91,58 +91,144 @@ sccvi/
 
 ## Instalación
 
-Clone el repositorio y abra una terminal en su carpeta raíz.
+Siga estos pasos en orden. Necesitará **dos terminales abiertas al mismo tiempo**: una para el backend y otra para el frontend. No cierre ninguna mientras esté usando la aplicación.
 
-### Backend
+### 1. Compruebe los requisitos previos
+
+Necesita tener instalado:
+
+- Node.js 24 o una versión compatible.
+- npm, que normalmente se instala junto con Node.js.
+- MongoDB local o una cuenta de MongoDB Atlas.
+- Git, si va a clonar el repositorio desde una URL.
+
+Compruebe Node.js y npm con estos comandos:
+
+```bash
+node --version
+npm --version
+```
+
+> **Nota para Windows:** puede ejecutar estos comandos desde PowerShell. Si alguno no funciona, instale Node.js y vuelva a abrir la terminal.
+
+Si usa MongoDB local, inicie el servicio de MongoDB **antes de iniciar el backend**. Si usa MongoDB Atlas, solo necesitará su cadena de conexión.
+
+### 2. Clone el repositorio
+
+Reemplace `<URL_DEL_REPOSITORIO>` por la URL real del repositorio:
+
+```bash
+git clone <URL_DEL_REPOSITORIO>
+cd sccvi
+```
+
+Si ya descargó el proyecto, abra una terminal directamente en la carpeta raíz `sccvi`.
+
+### 3. Instale el backend en la Terminal 1
+
+Abra la **Terminal 1** y, desde la carpeta raíz del proyecto, ejecute:
 
 ```bash
 cd backend
 npm install
 ```
 
-Cree `backend/.env` con las variables necesarias:
+> **Nota:** estos comandos deben ejecutarse dentro de la carpeta `backend`. Si la terminal ya está dentro de `backend`, no vuelva a ejecutar `cd backend`.
+
+### 4. Configure el archivo `.env`
+
+Dentro de la carpeta `backend`, cree un archivo llamado `.env`. Para arrancar y utilizar correctamente el backend, las dos variables obligatorias son `MONGO_URI` y `JWT_SECRET`:
+
+```env
+MONGO_URI=mongodb://127.0.0.1:27017/sccvi
+JWT_SECRET=pegue_aqui_un_texto_largo_y_aleatorio
+```
+
+`MONGO_URI` es la cadena de conexión de MongoDB. Con MongoDB local puede usar el ejemplo anterior. Con MongoDB Atlas debe pegar la cadena que le proporciona Atlas.
+
+No necesita crear la base de datos ni las colecciones manualmente. Mongoose las crea automáticamente conforme se utilizan las vistas y se guardan datos.
+
+`JWT_SECRET` no se obtiene de ningún servicio. Lo genera usted: es un texto largo y aleatorio que firma los tokens de sesión. Es obligatorio porque, sin él, el login y la creación del primer administrador no funcionan.
+
+Puede generar un valor seguro con este comando:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Copie el resultado del comando y péguelo después de `JWT_SECRET=` en `backend/.env`.
+
+Las demás variables son opcionales y solo se necesitan para sus funciones correspondientes:
 
 ```env
 PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/sccvi
-JWT_SECRET=reemplace_por_un_secreto_largo_y_aleatorio
-
 TELEGRAM_BOT_TOKEN=token_del_bot
-
 BREVO_API_KEY=clave_de_brevo
 BREVO_REMITENTE=correo_remitente_verificado
-
-# URL pública del frontend utilizada en los enlaces y códigos QR.
 FRONTEND_URL=http://localhost:5173
-
-# Use false para desactivar el análisis automático diario de alertas.
 ALERTAS_AUTOMATICAS=true
-
-# Active únicamente cuando el backend esté detrás de un proxy confiable.
 TRUST_PROXY=false
 ```
 
-No suba el archivo `.env` ni publique las claves de Brevo, Telegram, JWT o MongoDB.
+Por ejemplo, Telegram y Brevo solo son necesarios si desea enviar notificaciones por esos canales. No suba el archivo `.env` ni publique sus claves.
 
-Inicie el backend:
+### 5. Inicie el backend en la Terminal 1
+
+Sin cerrar la **Terminal 1**, ejecute este comando dentro de la carpeta `backend`:
 
 ```bash
 npm run dev
 ```
 
-La API se ejecutará de forma predeterminada en `http://localhost:5000`.
+La API estará disponible normalmente en `http://localhost:5000`.
 
-### Frontend
+> **Importante:** no cierre esta terminal. Debe permanecer abierta y ejecutando el backend mientras usa la aplicación.
 
-En otra terminal:
+### 6. Instale el frontend en la Terminal 2
+
+Abra una **Terminal 2** nueva. No detenga ni cierre la Terminal 1. Desde la carpeta raíz del proyecto, ejecute:
 
 ```bash
 cd frontend
 npm install
+```
+
+> **Nota:** este `npm install` se ejecuta dentro de `frontend`, no dentro de `backend`.
+
+### 7. Inicie el frontend en la Terminal 2
+
+En la **Terminal 2**, todavía dentro de la carpeta `frontend`, ejecute:
+
+```bash
 npm run dev
 ```
 
-La aplicación estará disponible normalmente en `http://localhost:5173`.
+Ahora deben quedar las dos terminales corriendo al mismo tiempo:
+
+- **Terminal 1:** `backend` ejecutando `npm run dev`.
+- **Terminal 2:** `frontend` ejecutando `npm run dev`.
+
+Cerrar cualquiera de las dos terminales detendrá una parte de la aplicación.
+
+### 8. Verifique la instalación
+
+Abra en el navegador la dirección que muestra Vite, normalmente:
+
+```text
+http://localhost:5173
+```
+
+Checklist rápido:
+
+- ✅ MongoDB está activo o la cadena de Atlas es correcta.
+- ✅ La Terminal 1 muestra que el backend está conectado a MongoDB.
+- ✅ La Terminal 2 muestra la URL local del frontend.
+- ✅ La aplicación aparece en el navegador.
+- ✅ Puede acceder a `/login`.
+
+**Si ve la aplicación en el navegador, ya quedó.**
+
+Si el backend no conecta, revisa que MongoDB esté activo y que la `MONGO_URI` sea correcta.
 
 ## Accesos
 
